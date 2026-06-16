@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/MicahParks/keyfunc/v3"
 	_ "github.com/Meidorislav/appraisal-crm/services/request-service/docs"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/config"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/handler"
@@ -33,9 +34,14 @@ func main() {
 		log.Fatalf("database is not reachable: %v", err)
 	}
 
+	jwks, err := keyfunc.NewDefault([]string{cfg.JWKSUrl})
+	if err != nil {
+		log.Fatalf("failed to initialize JWKS: %v", err)
+	}
+
 	repo := repository.NewPostgresRepository(db)
 	svc := service.NewRequestService(repo)
-	router := handler.NewRouter(svc)
+	router := handler.NewRouter(svc, jwks)
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
 	log.Printf("starting server on %s", addr)

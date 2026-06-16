@@ -5,19 +5,18 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/middleware"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/service"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
 type requestHandler struct {
-	svc      service.RequestService
-	validate *validator.Validate
+	svc service.RequestService
 }
 
-func newRequestHandler(svc service.RequestService, v *validator.Validate) *requestHandler {
-	return &requestHandler{svc: svc, validate: v}
+func newRequestHandler(svc service.RequestService) *requestHandler {
+	return &requestHandler{svc: svc}
 }
 
 // Create godoc
@@ -25,27 +24,23 @@ func newRequestHandler(svc service.RequestService, v *validator.Validate) *reque
 // @Tags        requests
 // @Accept      json
 // @Produce     json
-// @Param       X-Client-ID header string true "Client ID"
+// @Security    BearerAuth
 // @Param       body body createRequestDTO true "Request data"
 // @Success     201 {object} domain.Request
+// @Failure     401 {string} string
 // @Failure     400 {string} string
 // @Failure     500 {string} string
 // @Router      /requests [post]
 func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
-	clientID, err := uuid.Parse(r.Header.Get("X-Client-ID"))
-	if err != nil {
-		http.Error(w, "missing or invalid X-Client-ID header", http.StatusBadRequest)
+	clientID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	var dto createRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.validate.Struct(dto); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -64,8 +59,10 @@ func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Summary     Get request by ID
 // @Tags        requests
 // @Produce     json
+// @Security    BearerAuth
 // @Param       id path string true "Request ID"
 // @Success     200 {object} domain.Request
+// @Failure     401 {string} string
 // @Failure     400 {string} string
 // @Failure     404 {string} string
 // @Router      /requests/{id} [get]
@@ -82,6 +79,14 @@ func (h *requestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if middleware.HasRole(r.Context(), "client") {
+		userID, _ := middleware.UserIDFromContext(r.Context())
+		if req.ClientID != userID {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(req)
 }
@@ -91,9 +96,11 @@ func (h *requestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Tags        requests
 // @Accept      json
 // @Produce     json
+// @Security    BearerAuth
 // @Param       id path string true "Request ID"
 // @Param       body body updateRequestDTO true "Fields to update"
 // @Success     200 {object} domain.Request
+// @Failure     401 {string} string
 // @Failure     400 {string} string
 // @Failure     404 {string} string
 // @Failure     500 {string} string
@@ -108,11 +115,6 @@ func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var dto updateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.validate.Struct(dto); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -141,9 +143,11 @@ func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Tags        requests
 // @Accept      json
 // @Produce     json
+// @Security    BearerAuth
 // @Param       id path string true "Request ID"
 // @Param       body body changeStatusDTO true "New status"
 // @Success     200 {object} domain.Request
+// @Failure     401 {string} string
 // @Failure     400 {string} string
 // @Failure     422 {string} string
 // @Failure     500 {string} string
@@ -158,11 +162,6 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	var dto changeStatusDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.validate.Struct(dto); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -184,12 +183,26 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 // @Summary     List requests by client ID
 // @Tags        requests
 // @Produce     json
+// @Security    BearerAuth
 // @Param       client_id query string true "Client ID"
 // @Success     200 {array} domain.Request
+// @Failure     401 {string} string
 // @Failure     400 {string} string
 // @Failure     500 {string} string
 // @Router      /requests [get]
 func (h *requestHandler) ListByClientID(w http.ResponseWriter, r *http.Request) {
+	if middleware.HasRole(r.Context(), "client") {
+		userID, _ := middleware.UserIDFromContext(r.Context())
+		requests, err := h.svc.ListByClientID(r.Context(), userID)
+		if err != nil {
+			http.Error(w, "failed to list requests", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(requests)
+		return
+	}
+
 	clientID, err := uuid.Parse(r.URL.Query().Get("client_id"))
 	if err != nil {
 		http.Error(w, "missing or invalid client_id query param", http.StatusBadRequest)

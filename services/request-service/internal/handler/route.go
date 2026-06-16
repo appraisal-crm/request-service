@@ -1,15 +1,16 @@
 package handler
 
 import (
+	"github.com/MicahParks/keyfunc/v3"
+	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/middleware"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/service"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
-	"github.com/go-playground/validator/v10"
 )
 
-func NewRouter(svc service.RequestService) *chi.Mux {
+func NewRouter(svc service.RequestService, jwks keyfunc.Keyfunc) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -17,21 +18,22 @@ func NewRouter(svc service.RequestService) *chi.Mux {
 		AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	}))
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	v := validator.New()
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
 
 	r.Get("/health", Health)
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
-	r.Route("/requests", func(r chi.Router) {
-		rh := newRequestHandler(svc, v)
-		r.Post("/", rh.Create)
-		r.Get("/{id}", rh.GetByID)
-		r.Patch("/{id}", rh.Update)
-		r.Patch("/{id}/status", rh.ChangeStatus)
-		r.Get("/", rh.ListByClientID)
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Auth(jwks))
+
+		rh := newRequestHandler(svc)
+
+		r.With(middleware.RequireRoles("client")).Post("/requests", rh.Create)
+		r.With(middleware.RequireRoles("client", "appraiser", "admin")).Get("/requests", rh.ListByClientID)
+		r.With(middleware.RequireRoles("client", "appraiser", "admin")).Get("/requests/{id}", rh.GetByID)
+		r.With(middleware.RequireRoles("appraiser", "admin")).Patch("/requests/{id}", rh.Update)
+		r.With(middleware.RequireRoles("appraiser")).Patch("/requests/{id}/status", rh.ChangeStatus)
 	})
 
 	return r
