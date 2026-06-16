@@ -38,6 +38,7 @@ The service starts on port `8080` by default.
 | `SERVER_PORT`  | `8080`                                                                     | HTTP server port          |
 | `DATABASE_URL` | `postgres://appraisal:appraisal@localhost:5433/request_db?sslmode=disable` | PostgreSQL connection URL |
 | `JWKS_URL`     | `http://localhost:8180/realms/appraisal/protocol/openid-connect/certs`     | Keycloak JWKS endpoint    |
+| `ALLOWED_ORIGINS` | `*`                                                                   | Comma-separated CORS origins (`*` for local dev only) |
 
 ## Make targets
 

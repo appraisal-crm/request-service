@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/MicahParks/keyfunc/v3"
 	_ "github.com/Meidorislav/appraisal-crm/services/request-service/docs"
@@ -54,7 +55,8 @@ func main() {
 
 	repo := repository.NewPostgresRepository(db)
 	svc := service.NewRequestService(repo)
-	router := handler.NewRouter(svc, jwks)
+	allowedOrigins := strings.Split(cfg.AllowedOrigins, ",")
+	router := handler.NewRouter(svc, jwks, allowedOrigins)
 
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
 	slog.Info("starting server", "addr", addr)

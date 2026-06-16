@@ -10,11 +10,11 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func NewRouter(svc service.RequestService, jwks keyfunc.Keyfunc) *chi.Mux {
+func NewRouter(svc service.RequestService, jwks keyfunc.Keyfunc, allowedOrigins []string) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"*"},
+		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	}))
