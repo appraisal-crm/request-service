@@ -18,6 +18,7 @@ func NewRouter(svc service.RequestService, jwks keyfunc.Keyfunc) *chi.Mux {
 		AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	}))
+	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 
