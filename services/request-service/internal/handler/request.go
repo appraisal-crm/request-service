@@ -18,6 +18,17 @@ func newRequestHandler(svc service.RequestService) *requestHandler {
 	return &requestHandler{svc: svc}
 }
 
+// Create godoc
+// @Summary     Create a request
+// @Tags        requests
+// @Accept      json
+// @Produce     json
+// @Param       X-Client-ID header string true "Client ID"
+// @Param       body body createRequestDTO true "Request data"
+// @Success     201 {object} domain.Request
+// @Failure     400 {string} string
+// @Failure     500 {string} string
+// @Router      /requests [post]
 func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
 	clientID, err := uuid.Parse(r.Header.Get("X-Client-ID"))
 	if err != nil {
@@ -42,6 +53,15 @@ func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(req)
 }
 
+// GetByID godoc
+// @Summary     Get request by ID
+// @Tags        requests
+// @Produce     json
+// @Param       id path string true "Request ID"
+// @Success     200 {object} domain.Request
+// @Failure     400 {string} string
+// @Failure     404 {string} string
+// @Router      /requests/{id} [get]
 func (h *requestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -59,6 +79,18 @@ func (h *requestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(req)
 }
 
+// Update godoc
+// @Summary     Update request fields
+// @Tags        requests
+// @Accept      json
+// @Produce     json
+// @Param       id path string true "Request ID"
+// @Param       body body updateRequestDTO true "Fields to update"
+// @Success     200 {object} domain.Request
+// @Failure     400 {string} string
+// @Failure     404 {string} string
+// @Failure     500 {string} string
+// @Router      /requests/{id} [patch]
 func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -92,6 +124,18 @@ func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updated)
 }
 
+// ChangeStatus godoc
+// @Summary     Change request status
+// @Tags        requests
+// @Accept      json
+// @Produce     json
+// @Param       id path string true "Request ID"
+// @Param       body body changeStatusDTO true "New status"
+// @Success     200 {object} domain.Request
+// @Failure     400 {string} string
+// @Failure     422 {string} string
+// @Failure     500 {string} string
+// @Router      /requests/{id}/status [patch]
 func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -119,6 +163,15 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(req)
 }
 
+// ListByClientID godoc
+// @Summary     List requests by client ID
+// @Tags        requests
+// @Produce     json
+// @Param       client_id query string true "Client ID"
+// @Success     200 {array} domain.Request
+// @Failure     400 {string} string
+// @Failure     500 {string} string
+// @Router      /requests [get]
 func (h *requestHandler) ListByClientID(w http.ResponseWriter, r *http.Request) {
 	clientID, err := uuid.Parse(r.URL.Query().Get("client_id"))
 	if err != nil {

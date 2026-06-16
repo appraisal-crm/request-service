@@ -1,3 +1,9 @@
+// @title           Request Service API
+// @version         1.0
+// @description     API for managing appraisal requests
+// @host            localhost:8080
+// @BasePath        /
+
 package main
 
 import (
@@ -6,6 +12,7 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/Meidorislav/appraisal-crm/services/request-service/docs"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/config"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/handler"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/repository"
