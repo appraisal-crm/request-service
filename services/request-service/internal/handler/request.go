@@ -27,32 +27,30 @@ func newRequestHandler(svc service.RequestService) *requestHandler {
 // @Security    BearerAuth
 // @Param       body body createRequestDTO true "Request data"
 // @Success     201 {object} domain.Request
-// @Failure     401 {string} string
-// @Failure     400 {string} string
-// @Failure     500 {string} string
+// @Failure     400 {object} errorResponse
+// @Failure     401 {object} errorResponse
+// @Failure     500 {object} errorResponse
 // @Router      /requests [post]
 func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
 	clientID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		respondError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	var dto createRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	req, err := h.svc.Create(r.Context(), clientID, dto.ObjectType, dto.Address)
 	if err != nil {
-		http.Error(w, "failed to create request", http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "failed to create request")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(req)
+	respondJSON(w, http.StatusCreated, req)
 }
 
 // GetByID godoc
@@ -62,33 +60,33 @@ func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Security    BearerAuth
 // @Param       id path string true "Request ID"
 // @Success     200 {object} domain.Request
-// @Failure     401 {string} string
-// @Failure     400 {string} string
-// @Failure     404 {string} string
+// @Failure     400 {object} errorResponse
+// @Failure     401 {object} errorResponse
+// @Failure     403 {object} errorResponse
+// @Failure     404 {object} errorResponse
 // @Router      /requests/{id} [get]
 func (h *requestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
 	req, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, "request not found", http.StatusNotFound)
+		respondError(w, http.StatusNotFound, "request not found")
 		return
 	}
 
 	if middleware.HasRole(r.Context(), "client") {
 		userID, _ := middleware.UserIDFromContext(r.Context())
 		if req.ClientID != userID {
-			http.Error(w, "forbidden", http.StatusForbidden)
+			respondError(w, http.StatusForbidden, "forbidden")
 			return
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(req)
+	respondJSON(w, http.StatusOK, req)
 }
 
 // Update godoc
@@ -100,27 +98,27 @@ func (h *requestHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Param       id path string true "Request ID"
 // @Param       body body updateRequestDTO true "Fields to update"
 // @Success     200 {object} domain.Request
-// @Failure     401 {string} string
-// @Failure     400 {string} string
-// @Failure     404 {string} string
-// @Failure     500 {string} string
+// @Failure     400 {object} errorResponse
+// @Failure     401 {object} errorResponse
+// @Failure     404 {object} errorResponse
+// @Failure     500 {object} errorResponse
 // @Router      /requests/{id} [patch]
 func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
 	var dto updateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	req, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
-		http.Error(w, "request not found", http.StatusNotFound)
+		respondError(w, http.StatusNotFound, "request not found")
 		return
 	}
 
@@ -130,12 +128,11 @@ func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	updated, err := h.svc.Update(r.Context(), req)
 	if err != nil {
-		http.Error(w, "failed to update request", http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "failed to update request")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updated)
+	respondJSON(w, http.StatusOK, updated)
 }
 
 // ChangeStatus godoc
@@ -147,36 +144,35 @@ func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Param       id path string true "Request ID"
 // @Param       body body changeStatusDTO true "New status"
 // @Success     200 {object} domain.Request
-// @Failure     401 {string} string
-// @Failure     400 {string} string
-// @Failure     422 {string} string
-// @Failure     500 {string} string
+// @Failure     400 {object} errorResponse
+// @Failure     401 {object} errorResponse
+// @Failure     422 {object} errorResponse
+// @Failure     500 {object} errorResponse
 // @Router      /requests/{id}/status [patch]
 func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
 
 	var dto changeStatusDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	req, err := h.svc.ChangeStatus(r.Context(), id, dto.Status)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidStatusTransition) {
-			http.Error(w, "invalid status transition", http.StatusUnprocessableEntity)
+			respondError(w, http.StatusUnprocessableEntity, "invalid status transition")
 			return
 		}
-		http.Error(w, "failed to change status", http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "failed to change status")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(req)
+	respondJSON(w, http.StatusOK, req)
 }
 
 // ListByClientID godoc
@@ -184,37 +180,35 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 // @Tags        requests
 // @Produce     json
 // @Security    BearerAuth
-// @Param       client_id query string true "Client ID"
+// @Param       client_id query string false "Client ID (appraiser/admin only)"
 // @Success     200 {array} domain.Request
-// @Failure     401 {string} string
-// @Failure     400 {string} string
-// @Failure     500 {string} string
+// @Failure     400 {object} errorResponse
+// @Failure     401 {object} errorResponse
+// @Failure     500 {object} errorResponse
 // @Router      /requests [get]
 func (h *requestHandler) ListByClientID(w http.ResponseWriter, r *http.Request) {
 	if middleware.HasRole(r.Context(), "client") {
 		userID, _ := middleware.UserIDFromContext(r.Context())
 		requests, err := h.svc.ListByClientID(r.Context(), userID)
 		if err != nil {
-			http.Error(w, "failed to list requests", http.StatusInternalServerError)
+			respondError(w, http.StatusInternalServerError, "failed to list requests")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(requests)
+		respondJSON(w, http.StatusOK, requests)
 		return
 	}
 
 	clientID, err := uuid.Parse(r.URL.Query().Get("client_id"))
 	if err != nil {
-		http.Error(w, "missing or invalid client_id query param", http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "missing or invalid client_id query param")
 		return
 	}
 
 	requests, err := h.svc.ListByClientID(r.Context(), clientID)
 	if err != nil {
-		http.Error(w, "failed to list requests", http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "failed to list requests")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(requests)
+	respondJSON(w, http.StatusOK, requests)
 }

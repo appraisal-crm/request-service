@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/MicahParks/keyfunc/v3"
+	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/httputil"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -29,7 +30,7 @@ func Auth(jwks keyfunc.Keyfunc) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if !strings.HasPrefix(authHeader, "Bearer ") {
-				http.Error(w, "missing authorization header", http.StatusUnauthorized)
+				httputil.RespondError(w, http.StatusUnauthorized, "missing authorization header")
 				return
 			}
 
@@ -38,13 +39,13 @@ func Auth(jwks keyfunc.Keyfunc) func(http.Handler) http.Handler {
 			var claims Claims
 			_, err := jwt.ParseWithClaims(tokenStr, &claims, jwks.Keyfunc)
 			if err != nil {
-				http.Error(w, "invalid token", http.StatusUnauthorized)
+				httputil.RespondError(w, http.StatusUnauthorized, "invalid token")
 				return
 			}
 
 			userID, err := uuid.Parse(claims.Subject)
 			if err != nil {
-				http.Error(w, "invalid token subject", http.StatusUnauthorized)
+				httputil.RespondError(w, http.StatusUnauthorized, "invalid token subject")
 				return
 			}
 
@@ -83,7 +84,7 @@ func RequireRoles(roles ...string) func(http.Handler) http.Handler {
 					return
 				}
 			}
-			http.Error(w, "forbidden", http.StatusForbidden)
+			httputil.RespondError(w, http.StatusForbidden, "forbidden")
 		})
 	}
 }
