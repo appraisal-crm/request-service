@@ -16,7 +16,7 @@ func NewRouter(svc service.RequestService, jwks keyfunc.Keyfunc, allowedOrigins 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"*"},
+		AllowedHeaders: []string{"Authorization", "Content-Type"},
 	}))
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Logger)

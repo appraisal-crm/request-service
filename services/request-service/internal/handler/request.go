@@ -38,6 +38,7 @@ func (h *requestHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var dto createRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -118,6 +119,7 @@ func (h *requestHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var dto updateRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -182,6 +184,7 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var dto changeStatusDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
