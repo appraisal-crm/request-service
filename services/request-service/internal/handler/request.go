@@ -201,6 +201,10 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 			respondError(w, http.StatusNotFound, "request not found")
 			return
 		}
+		if errors.Is(err, service.ErrConflict) {
+			respondError(w, http.StatusConflict, "request was modified concurrently, please retry")
+			return
+		}
 		if errors.Is(err, service.ErrInvalidStatusTransition) {
 			respondError(w, http.StatusUnprocessableEntity, "invalid status transition")
 			return

@@ -37,6 +37,9 @@ func (m *mockRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStat
 
 func (m *mockRepository) ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error) {
 	args := m.Called(ctx, clientID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*domain.Request), args.Error(1)
 }
 

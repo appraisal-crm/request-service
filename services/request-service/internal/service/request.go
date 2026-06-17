@@ -13,6 +13,7 @@ import (
 
 var ErrNotFound = errors.New("not found")
 var ErrInvalidStatusTransition = errors.New("invalid status transition")
+var ErrConflict = errors.New("concurrent modification conflict")
 
 var allowedTransitions = map[domain.Status]domain.Status{
 	domain.StatusNew:                 domain.StatusInProgress,
@@ -99,7 +100,7 @@ func (s *requestService) ChangeStatus(ctx context.Context, id uuid.UUID, newStat
 		}
 		if errors.Is(err, repository.ErrConflict) {
 			slog.WarnContext(ctx, "concurrent status change detected", "request_id", id, "from", oldStatus, "to", newStatus)
-			return nil, ErrInvalidStatusTransition
+			return nil, ErrConflict
 		}
 		slog.ErrorContext(ctx, "failed to update request status", "error", err, "request_id", id)
 		return nil, err
