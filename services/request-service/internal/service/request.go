@@ -52,10 +52,14 @@ func (s *requestService) Create(ctx context.Context, clientID uuid.UUID, objectT
 
 func (s *requestService) GetByID(ctx context.Context, id uuid.UUID) (*domain.Request, error) {
 	req, err := s.repo.GetByID(ctx, id)
-	if errors.Is(err, repository.ErrNotFound) {
-		return nil, ErrNotFound
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		slog.ErrorContext(ctx, "failed to get request", "error", err, "request_id", id)
+		return nil, err
 	}
-	return req, err
+	return req, nil
 }
 
 func (s *requestService) Update(ctx context.Context, req *domain.Request) (*domain.Request, error) {
@@ -86,6 +90,7 @@ func (s *requestService) ChangeStatus(ctx context.Context, id uuid.UUID, newStat
 		return nil, ErrInvalidStatusTransition
 	}
 
+	oldStatus := req.Status
 	req.Status = newStatus
 	req.UpdatedAt = time.Now()
 
@@ -93,10 +98,15 @@ func (s *requestService) ChangeStatus(ctx context.Context, id uuid.UUID, newStat
 		slog.ErrorContext(ctx, "failed to update request status", "error", err, "request_id", id)
 		return nil, err
 	}
-	slog.InfoContext(ctx, "request status changed", "request_id", id, "from", allowed, "to", newStatus)
+	slog.InfoContext(ctx, "request status changed", "request_id", id, "from", oldStatus, "to", newStatus)
 	return req, nil
 }
 
 func (s *requestService) ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error) {
-	return s.repo.ListByClientID(ctx, clientID)
+	requests, err := s.repo.ListByClientID(ctx, clientID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list requests", "error", err, "client_id", clientID)
+		return nil, err
+	}
+	return requests, nil
 }
