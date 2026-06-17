@@ -71,7 +71,6 @@ func (r *postgresRepository) Update(ctx context.Context, req *domain.Request) er
 		SET inspector_id = $1, object_type = $2, address = $3, status = $4, updated_at = $5
 		WHERE id = $6
 	`
-	req.UpdatedAt = time.Now()
 	tag, err := r.db.Exec(ctx, query,
 		req.InspectorID,
 		req.ObjectType,
@@ -85,6 +84,28 @@ func (r *postgresRepository) Update(ctx context.Context, req *domain.Request) er
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *postgresRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time) error {
+	query := `
+		UPDATE requests SET status = $1, updated_at = $2
+		WHERE id = $3 AND status = $4
+	`
+	tag, err := r.db.Exec(ctx, query, newStatus, updatedAt, id, oldStatus)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		var exists bool
+		if err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM requests WHERE id = $1)", id).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return ErrNotFound
+		}
+		return ErrConflict
 	}
 	return nil
 }

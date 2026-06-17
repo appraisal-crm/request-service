@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/domain"
 	"github.com/google/uuid"
@@ -28,6 +29,10 @@ func (m *mockRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Req
 
 func (m *mockRepository) Update(ctx context.Context, req *domain.Request) error {
 	return m.Called(ctx, req).Error(0)
+}
+
+func (m *mockRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time) error {
+	return m.Called(ctx, id, oldStatus, newStatus, updatedAt).Error(0)
 }
 
 func (m *mockRepository) ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error) {
@@ -75,9 +80,7 @@ func TestChangeStatus_ValidTransition(t *testing.T) {
 			existing := &domain.Request{ID: id, Status: tt.from}
 
 			repo.On("GetByID", mock.Anything, id).Return(existing, nil)
-			repo.On("Update", mock.Anything, mock.MatchedBy(func(r *domain.Request) bool {
-				return r.Status == tt.to
-			})).Return(nil)
+			repo.On("ChangeStatus", mock.Anything, id, tt.from, tt.to, mock.AnythingOfType("time.Time")).Return(nil)
 
 			req, err := svc.ChangeStatus(context.Background(), id, tt.to)
 

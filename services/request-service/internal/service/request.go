@@ -91,13 +91,23 @@ func (s *requestService) ChangeStatus(ctx context.Context, id uuid.UUID, newStat
 	}
 
 	oldStatus := req.Status
-	req.Status = newStatus
-	req.UpdatedAt = time.Now()
+	updatedAt := time.Now()
 
-	if err := s.repo.Update(ctx, req); err != nil {
+	if err := s.repo.ChangeStatus(ctx, id, oldStatus, newStatus, updatedAt); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		if errors.Is(err, repository.ErrConflict) {
+			slog.WarnContext(ctx, "concurrent status change detected", "request_id", id, "from", oldStatus, "to", newStatus)
+			return nil, ErrInvalidStatusTransition
+		}
 		slog.ErrorContext(ctx, "failed to update request status", "error", err, "request_id", id)
 		return nil, err
 	}
+
+	req.Status = newStatus
+	req.UpdatedAt = updatedAt
+
 	slog.InfoContext(ctx, "request status changed", "request_id", id, "from", oldStatus, "to", newStatus)
 	return req, nil
 }
