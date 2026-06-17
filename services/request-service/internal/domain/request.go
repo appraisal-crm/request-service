@@ -29,12 +29,12 @@ const (
 )
 
 type Request struct {
-	ID          uuid.UUID
-	ClientID    uuid.UUID
-	InspectorID *uuid.UUID
-	ObjectType  *ObjectType
-	Address     *string
-	Status      Status
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          uuid.UUID   `json:"id"`
+	ClientID    uuid.UUID   `json:"client_id"`
+	InspectorID *uuid.UUID  `json:"inspector_id,omitempty"`
+	ObjectType  *ObjectType `json:"object_type,omitempty"`
+	Address     *string     `json:"address,omitempty"`
+	Status      Status      `json:"status"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }

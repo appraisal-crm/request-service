@@ -123,7 +123,7 @@ func (r *postgresRepository) ListByClientID(ctx context.Context, clientID uuid.U
 	}
 	defer rows.Close()
 
-	var requests []*domain.Request
+	requests := make([]*domain.Request, 0)
 	for rows.Next() {
 		var req domain.Request
 		err := rows.Scan(
