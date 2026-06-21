@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"log"
+	"os"
+)
 
 type Config struct {
 	ServerPort     string
@@ -10,9 +13,14 @@ type Config struct {
 }
 
 func Load() *Config {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL is required")
+	}
+
 	return &Config{
 		ServerPort:     getEnv("SERVER_PORT", "8080"),
-		DatabaseURL:    getEnv("DATABASE_URL", "postgres://appraisal:appraisal@localhost:5433/request_db"),
+		DatabaseURL:    dbURL,
 		JWKSUrl:        getEnv("JWKS_URL", "http://localhost:8180/realms/appraisal/protocol/openid-connect/certs"),
 		AllowedOrigins: getEnv("ALLOWED_ORIGINS", "*"),
 	}
