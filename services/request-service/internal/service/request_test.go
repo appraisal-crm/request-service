@@ -43,6 +43,14 @@ func (m *mockRepository) ListByClientID(ctx context.Context, clientID uuid.UUID)
 	return args.Get(0).([]*domain.Request), args.Error(1)
 }
 
+func (m *mockRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.Request, error) {
+	args := m.Called(ctx, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Request), args.Error(1)
+}
+
 func TestCreate_SetsStatusNewAndGeneratesID(t *testing.T) {
 	repo := &mockRepository{}
 	svc := NewRequestService(repo)

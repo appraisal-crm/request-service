@@ -18,4 +18,5 @@ type RequestRepository interface {
 	Update(ctx context.Context, req *domain.Request) error
 	ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time) error
 	ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error)
+	ListAll(ctx context.Context, limit, offset int) ([]*domain.Request, error)
 }

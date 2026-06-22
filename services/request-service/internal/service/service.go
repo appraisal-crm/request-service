@@ -21,4 +21,5 @@ type RequestService interface {
 	Update(ctx context.Context, req *domain.Request) (*domain.Request, error)
 	ChangeStatus(ctx context.Context, id uuid.UUID, newStatus domain.Status) (*domain.Request, error)
 	ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error)
+	ListAll(ctx context.Context, limit, offset int) ([]*domain.Request, error)
 }

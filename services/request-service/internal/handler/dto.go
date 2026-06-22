@@ -21,3 +21,9 @@ type updateRequestDTO struct {
 type changeStatusDTO struct {
 	Status domain.Status `json:"status" validate:"required,oneof=new in_progress inspection_scheduled inspection_completed appraisal report_sent closed"`
 }
+
+type listAllResponse struct {
+	Data  []*domain.Request `json:"data"`
+	Page  int               `json:"page"`
+	Limit int               `json:"limit"`
+}

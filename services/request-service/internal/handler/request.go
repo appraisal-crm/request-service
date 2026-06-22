@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/middleware"
 	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/service"
@@ -222,13 +223,17 @@ func (h *requestHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, req)
 }
 
-// ListByClientID godoc
-// @Summary     List requests by client ID
+// ListRequests godoc
+// @Summary     List requests
+// @Description Clients see their own requests. Appraiser/admin with client_id param filter by client. Appraiser/admin without client_id return all requests (paginated).
 // @Tags        requests
 // @Produce     json
 // @Security    BearerAuth
-// @Param       client_id query string false "Client ID (appraiser/admin only)"
-// @Success     200 {array} domain.Request
+// @Param       client_id query string false "Filter by client ID (appraiser/admin only)"
+// @Param       page      query int    false "Page number (default 1, appraiser/admin list-all only)"
+// @Param       limit     query int    false "Page size (default 20, max 100, appraiser/admin list-all only)"
+// @Success     200 {array}  domain.Request
+// @Success     200 {object} listAllResponse
 // @Failure     400 {object} errorResponse
 // @Failure     401 {object} errorResponse
 // @Failure     500 {object} errorResponse
@@ -245,17 +250,52 @@ func (h *requestHandler) ListByClientID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	clientID, err := uuid.Parse(r.URL.Query().Get("client_id"))
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "missing or invalid client_id query param")
+	rawClientID := r.URL.Query().Get("client_id")
+	if rawClientID != "" {
+		clientID, err := uuid.Parse(rawClientID)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid client_id query param")
+			return
+		}
+		requests, err := h.svc.ListByClientID(r.Context(), clientID)
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "failed to list requests")
+			return
+		}
+		respondJSON(w, http.StatusOK, requests)
 		return
 	}
 
-	requests, err := h.svc.ListByClientID(r.Context(), clientID)
+	page := parseIntParam(r.URL.Query().Get("page"), 1)
+	limit := parseIntParam(r.URL.Query().Get("limit"), 20)
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	requests, err := h.svc.ListAll(r.Context(), limit, offset)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list requests")
 		return
 	}
 
-	respondJSON(w, http.StatusOK, requests)
+	respondJSON(w, http.StatusOK, listAllResponse{
+		Data:  requests,
+		Page:  page,
+		Limit: limit,
+	})
+}
+
+func parseIntParam(s string, def int) int {
+	if s == "" {
+		return def
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return v
 }

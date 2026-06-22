@@ -123,3 +123,12 @@ func (s *requestService) ListByClientID(ctx context.Context, clientID uuid.UUID)
 	}
 	return requests, nil
 }
+
+func (s *requestService) ListAll(ctx context.Context, limit, offset int) ([]*domain.Request, error) {
+	requests, err := s.repo.ListAll(ctx, limit, offset)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list all requests", "error", err)
+		return nil, err
+	}
+	return requests, nil
+}

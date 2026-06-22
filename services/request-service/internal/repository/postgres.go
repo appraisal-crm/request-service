@@ -114,6 +114,42 @@ func (r *postgresRepository) ChangeStatus(ctx context.Context, id uuid.UUID, old
 	return nil
 }
 
+func (r *postgresRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.Request, error) {
+	query := `
+		SELECT id, client_id, email, phone_number, inspector_id, object_type, address, status, created_at, updated_at
+		FROM requests
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	requests := make([]*domain.Request, 0)
+	for rows.Next() {
+		var req domain.Request
+		err := rows.Scan(
+			&req.ID,
+			&req.ClientID,
+			&req.Email,
+			&req.PhoneNumber,
+			&req.InspectorID,
+			&req.ObjectType,
+			&req.Address,
+			&req.Status,
+			&req.CreatedAt,
+			&req.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, &req)
+	}
+	return requests, rows.Err()
+}
+
 func (r *postgresRepository) ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error) {
 	query := `
 		SELECT id, client_id, email, phone_number, inspector_id, object_type, address, status, created_at, updated_at
