@@ -36,7 +36,7 @@ The service starts on port `8080` by default.
 | Variable       | Default                                                                    | Description               |
 |----------------|----------------------------------------------------------------------------|---------------------------|
 | `SERVER_PORT`  | `8080`                                                                     | HTTP server port          |
-| `DATABASE_URL` | `postgres://appraisal:appraisal@localhost:5433/request_db?sslmode=disable` | PostgreSQL connection URL |
+| `DATABASE_URL` | — **(required)**, e.g. `postgres://appraisal:appraisal@localhost:5433/request_db?sslmode=disable` | PostgreSQL connection URL |
 | `JWKS_URL`     | `http://localhost:8180/realms/appraisal/protocol/openid-connect/certs`     | Keycloak JWKS endpoint    |
 | `ALLOWED_ORIGINS` | `*`                                                                   | Comma-separated CORS origins (`*` for local dev only) |
 
@@ -138,11 +138,11 @@ TOKEN=$(curl -s -X POST http://localhost:8180/realms/appraisal/protocol/openid-c
   -d "grant_type=password&client_id=appraisal-frontend&username=<username>&password=<password>" \
   | jq -r .access_token)
 
-# Create a request
+# Create a request (email and phone_number are required)
 curl -s -X POST http://localhost:8080/requests \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"object_type": "apartment", "address": "Moscow, Lenina 1"}'
+  -d '{"email": "test@example.com", "phone_number": "+79161234567", "object_type": "apartment", "address": "Moscow, Lenina 1"}'
 ```
 
 #### Using Postman
@@ -183,14 +183,24 @@ new → in_progress → inspection_scheduled → inspection_completed → apprai
 | Move from `new` to `closed` (skip) | `422 Unprocessable Entity` |
 | Move backwards (e.g. `in_progress` to `new`) | `422 Unprocessable Entity` |
 
-#### Optional fields
+#### Required and optional fields
 
-When creating a request, `object_type` and `address` are optional — the appraiser can fill them in later.
+When creating a request, `email` and `phone_number` are **required**; `object_type` and `address` are optional — the appraiser can fill them in later.
 
 | Scenario | Expected result |
 |---|---|
-| Create with no body `{}` | `201 Created` |
-| Create with `object_type` and `address` | `201 Created` |
+| Create with empty body `{}` | `400 Bad Request` |
+| Create with only `email` + `phone_number` | `201 Created` |
+| Create with `object_type` and `address` as well | `201 Created` |
+
+#### Concurrent changes (optimistic locking)
+
+If two people modify the same request at the same time, the loser gets `409 Conflict` — re-read the request and retry.
+
+| Scenario | Expected result |
+|---|---|
+| Two simultaneous status changes | one `200 OK`, one `409 Conflict` |
+| Simultaneous field PATCHes | one `200 OK`, the rest `409 Conflict` |
 
 ---
 

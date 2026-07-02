@@ -42,7 +42,9 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 
 **Done (merged to dev):**
 - `infra/docker-compose.yml` — PostgreSQL 17, Redis 7, Keycloak 26 (Kafka not yet in compose)
-- `services/request-service` — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests
+- `services/request-service` — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests, optimistic locking on both PATCH endpoints (CAS, no version column), graceful shutdown
+
+**Keycloak note:** the compose starts Keycloak with an empty database — the `appraisal` realm, roles, client, and test users must be bootstrapped manually (see `docs/onboarding.md` § Keycloak setup for copy-paste commands).
 
 **Not yet implemented:**
 - API Gateway
@@ -111,7 +113,8 @@ cd services/request-service && go run cmd/server/main.go
 # Tests
 cd services/request-service && go test ./...
 
-# Swagger
+# Swagger — NOTE: docs/ is gitignored, so `go build ./...` FAILS on a fresh
+# checkout until docs are generated (`make generate` or `make build`)
 swag init -g cmd/server/main.go -o docs
 
 # Migrations
@@ -126,8 +129,16 @@ migrate -path migrations/ -database "postgres://..." up
 - Do not switch config from `os.Getenv` to viper without explicit agreement
 - Never modify already-applied migrations — new additive migrations only
 
+## Workflow
+
+- Tasks tracked in Jira, project **ACRM** (mdrslv.atlassian.net)
+- Branch from `dev`: `feature/<scope>` / `fix/<scope>`; PR into `dev`
+- Conventional commits with the Jira key: `fix(requests): ... (ACRM-84)`
+
 ## Documentation
 
+- Developer onboarding: `docs/onboarding.md`
 - BRD: `docs/brd/`
 - Architecture (C4 / Structurizr): `docs/architecture/`
-- API contracts: `services/*/docs/swagger.json`
+- ADRs: `docs/adr/`
+- API contracts: `services/*/docs/swagger.json` (generated, gitignored — run `make generate`)
