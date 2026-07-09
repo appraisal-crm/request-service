@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/MicahParks/keyfunc/v3"
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/httputil"
+	"github.com/appraisal-crm/request-service/internal/httputil"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )

@@ -1,4 +1,4 @@
-module github.com/Meidorislav/appraisal-crm/services/request-service
+module github.com/appraisal-crm/request-service
 
 go 1.26.3
 

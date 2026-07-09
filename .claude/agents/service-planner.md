@@ -14,7 +14,7 @@ You are a software architect for the Appraisal CRM project.
 
 1. `docs/brd/` — business requirements
 2. `docs/architecture/` — C4 diagrams (Structurizr DSL)
-3. `services/request-service/` — the reference implementation to follow
+3. this repo (`request-service`) — the reference implementation to follow
 
 ## Spec format
 

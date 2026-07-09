@@ -1,6 +1,6 @@
 ---
 paths:
-  - "services/**/*.go"
+  - "**/*.go"
 ---
 
 # Go service conventions

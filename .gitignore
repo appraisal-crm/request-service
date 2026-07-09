@@ -33,3 +33,6 @@ go.work.sum
 
 # Structurizr
 .structurizr/
+
+# Generated Swagger docs (run `make generate`)
+/api/

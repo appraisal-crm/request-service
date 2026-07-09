@@ -23,11 +23,11 @@ import (
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
-	_ "github.com/Meidorislav/appraisal-crm/services/request-service/docs"
-	"github.com/Meidorislav/appraisal-crm/services/request-service/config"
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/handler"
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/repository"
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/service"
+	_ "github.com/appraisal-crm/request-service/api"
+	"github.com/appraisal-crm/request-service/config"
+	"github.com/appraisal-crm/request-service/internal/handler"
+	"github.com/appraisal-crm/request-service/internal/repository"
+	"github.com/appraisal-crm/request-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
