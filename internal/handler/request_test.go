@@ -650,6 +650,46 @@ func TestList_ListAll_ClampsOversizeLimit(t *testing.T) {
 	svc.AssertExpectations(t)
 }
 
+// TC-LA-09 (ACRM-83): page=0 is out of range and is treated as page 1 (offset 0).
+func TestList_ListAll_PageZeroDefaultsToOne(t *testing.T) {
+	svc := &mockService{}
+	h := newRequestHandler(svc)
+	// page=0 -> clamped to page 1, default limit 20 -> offset 0
+	svc.On("ListAll", mock.Anything, 20, 0).Return([]*domain.Request{}, nil)
+
+	w := httptest.NewRecorder()
+	r := newAuthedRequest(http.MethodGet, "/requests?page=0", "", reqOptions{userID: uuid.New(), roles: []string{"appraiser"}})
+	h.ListByClientID(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var env listAllResponse
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
+	assert.Equal(t, 1, env.Page)
+	assert.Equal(t, 20, env.Limit)
+	svc.AssertExpectations(t)
+}
+
+// TC-LA-10 (ACRM-83): a page past the last one returns an empty data array in the
+// envelope (page/limit are still echoed back), not an error.
+func TestList_ListAll_PageBeyondLastReturnsEmptyData(t *testing.T) {
+	svc := &mockService{}
+	h := newRequestHandler(svc)
+	// page=999&limit=20 -> offset 19960; the repo has nothing that far out
+	svc.On("ListAll", mock.Anything, 20, 19960).Return([]*domain.Request{}, nil)
+
+	w := httptest.NewRecorder()
+	r := newAuthedRequest(http.MethodGet, "/requests?page=999&limit=20", "", reqOptions{userID: uuid.New(), roles: []string{"appraiser"}})
+	h.ListByClientID(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var env listAllResponse
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
+	assert.Equal(t, 999, env.Page)
+	assert.NotNil(t, env.Data)
+	assert.Len(t, env.Data, 0)
+	svc.AssertExpectations(t)
+}
+
 func TestList_ClientServiceError_500(t *testing.T) {
 	svc := &mockService{}
 	h := newRequestHandler(svc)
