@@ -112,18 +112,26 @@ func TestChangeStatus_ValidTransition(t *testing.T) {
 }
 
 func TestChangeStatus_InvalidTransition(t *testing.T) {
+	// Covers ACRM-75 forbidden transitions (TC-SM-07..TC-SM-11) plus a few extra
+	// jumps. Every non-adjacent move, backward move, or same-status move must be
+	// rejected with ErrInvalidStatusTransition at the service layer.
 	cases := []struct {
+		name string
 		from domain.Status
 		to   domain.Status
 	}{
-		{domain.StatusNew, domain.StatusClosed},
-		{domain.StatusNew, domain.StatusAppraisal},
-		{domain.StatusInProgress, domain.StatusNew},
-		{domain.StatusClosed, domain.StatusNew},
+		{"TC-SM-07 skip step", domain.StatusNew, domain.StatusInspectionScheduled},
+		{"TC-SM-08 jump to end", domain.StatusInProgress, domain.StatusClosed},
+		{"TC-SM-09 go backward", domain.StatusAppraisal, domain.StatusInProgress},
+		{"TC-SM-10 restart from closed", domain.StatusClosed, domain.StatusNew},
+		{"TC-SM-11 same status", domain.StatusClosed, domain.StatusClosed},
+		{"extra: new to closed", domain.StatusNew, domain.StatusClosed},
+		{"extra: new to appraisal", domain.StatusNew, domain.StatusAppraisal},
+		{"extra: in_progress to new", domain.StatusInProgress, domain.StatusNew},
 	}
 
 	for _, tt := range cases {
-		t.Run(string(tt.from)+"->"+string(tt.to), func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockRepository{}
 			svc := NewRequestService(repo)
 
