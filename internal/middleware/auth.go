@@ -49,11 +49,24 @@ func Auth(jwks keyfunc.Keyfunc) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
-			ctx = context.WithValue(ctx, contextKeyRoles, claims.RealmAccess.Roles)
+			ctx := ContextWithUserID(r.Context(), userID)
+			ctx = ContextWithRoles(ctx, claims.RealmAccess.Roles)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// ContextWithUserID returns a copy of ctx carrying the authenticated user ID.
+// It is the canonical way to populate the context that UserIDFromContext reads,
+// used by Auth and by tests that need to simulate an authenticated request.
+func ContextWithUserID(ctx context.Context, id uuid.UUID) context.Context {
+	return context.WithValue(ctx, contextKeyUserID, id)
+}
+
+// ContextWithRoles returns a copy of ctx carrying the caller's realm roles.
+// It is the canonical way to populate the context that RolesFromContext reads.
+func ContextWithRoles(ctx context.Context, roles []string) context.Context {
+	return context.WithValue(ctx, contextKeyRoles, roles)
 }
 
 func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
