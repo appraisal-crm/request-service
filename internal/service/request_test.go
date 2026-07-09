@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -215,5 +216,129 @@ func TestCreate_OptionalFieldsCanBeNil(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, req.ObjectType)
 	assert.Nil(t, req.Address)
+	repo.AssertExpectations(t)
+}
+
+// Empty UpdateInput changes no fields but still bumps updated_at and persists.
+// This documents current behavior (the handler maps it to 200; see ACRM-77 TC-VAL-16).
+func TestUpdate_EmptyInputBumpsUpdatedAtWithoutChangingFields(t *testing.T) {
+	repo := &mockRepository{}
+	svc := NewRequestService(repo)
+
+	id := uuid.New()
+	oldAddress := "Old street 1"
+	oldType := domain.ObjectTypeApartment
+	inspectorID := uuid.New()
+	prevUpdatedAt := time.Now().Add(-time.Hour)
+	existing := &domain.Request{
+		ID:          id,
+		Status:      domain.StatusInProgress,
+		InspectorID: &inspectorID,
+		ObjectType:  &oldType,
+		Address:     &oldAddress,
+		UpdatedAt:   prevUpdatedAt,
+	}
+
+	repo.On("GetByID", mock.Anything, id).Return(existing, nil)
+	repo.On("Update", mock.Anything, mock.MatchedBy(func(r *domain.Request) bool {
+		// fields untouched, updated_at moved forward, and the compare-and-set
+		// still uses the previous updated_at as the guard.
+		return r.InspectorID == &inspectorID && r.ObjectType == &oldType &&
+			r.Address == &oldAddress && r.Status == domain.StatusInProgress &&
+			r.UpdatedAt.After(prevUpdatedAt)
+	}), prevUpdatedAt).Return(nil)
+
+	req, err := svc.Update(context.Background(), id, UpdateInput{})
+
+	assert.NoError(t, err)
+	assert.Equal(t, &inspectorID, req.InspectorID)
+	assert.Equal(t, &oldType, req.ObjectType)
+	assert.Equal(t, &oldAddress, req.Address)
+	assert.Equal(t, domain.StatusInProgress, req.Status)
+	assert.True(t, req.UpdatedAt.After(prevUpdatedAt))
+	repo.AssertExpectations(t)
+}
+
+// An unexpected repository error from Update is propagated unchanged (not masked
+// as ErrNotFound or ErrConflict).
+func TestUpdate_PropagatesUnknownRepoError(t *testing.T) {
+	repo := &mockRepository{}
+	svc := NewRequestService(repo)
+
+	id := uuid.New()
+	repoErr := errors.New("db exploded")
+	repo.On("GetByID", mock.Anything, id).Return(&domain.Request{ID: id, Status: domain.StatusNew}, nil)
+	repo.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(repoErr)
+
+	_, err := svc.Update(context.Background(), id, UpdateInput{})
+
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrNotFound)
+	assert.NotErrorIs(t, err, ErrConflict)
+	repo.AssertExpectations(t)
+}
+
+// An unexpected repository error from the initial GetByID is propagated unchanged.
+func TestUpdate_PropagatesUnknownRepoErrorFromGetByID(t *testing.T) {
+	repo := &mockRepository{}
+	svc := NewRequestService(repo)
+
+	id := uuid.New()
+	repoErr := errors.New("db exploded")
+	repo.On("GetByID", mock.Anything, id).Return(nil, repoErr)
+
+	_, err := svc.Update(context.Background(), id, UpdateInput{})
+
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrNotFound)
+	repo.AssertExpectations(t)
+}
+
+func TestListByClientID_ReturnsRequests(t *testing.T) {
+	repo := &mockRepository{}
+	svc := NewRequestService(repo)
+
+	clientID := uuid.New()
+	expected := []*domain.Request{
+		{ID: uuid.New(), ClientID: clientID, Status: domain.StatusNew},
+		{ID: uuid.New(), ClientID: clientID, Status: domain.StatusInProgress},
+	}
+	repo.On("ListByClientID", mock.Anything, clientID).Return(expected, nil)
+
+	got, err := svc.ListByClientID(context.Background(), clientID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expected, got)
+	repo.AssertExpectations(t)
+}
+
+// A client with no requests yields an empty (non-nil) slice, not null.
+func TestListByClientID_EmptyReturnsEmptySlice(t *testing.T) {
+	repo := &mockRepository{}
+	svc := NewRequestService(repo)
+
+	clientID := uuid.New()
+	repo.On("ListByClientID", mock.Anything, clientID).Return([]*domain.Request{}, nil)
+
+	got, err := svc.ListByClientID(context.Background(), clientID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Len(t, got, 0)
+	repo.AssertExpectations(t)
+}
+
+func TestListByClientID_PropagatesRepoError(t *testing.T) {
+	repo := &mockRepository{}
+	svc := NewRequestService(repo)
+
+	clientID := uuid.New()
+	repoErr := errors.New("db exploded")
+	repo.On("ListByClientID", mock.Anything, clientID).Return(nil, repoErr)
+
+	got, err := svc.ListByClientID(context.Background(), clientID)
+
+	assert.ErrorIs(t, err, repoErr)
+	assert.Nil(t, got)
 	repo.AssertExpectations(t)
 }
