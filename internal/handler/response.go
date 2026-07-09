@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/httputil"
+	"github.com/appraisal-crm/request-service/internal/httputil"
 )
 
 type errorResponse = httputil.ErrorResponse

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/middleware"
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/service"
+	"github.com/appraisal-crm/request-service/internal/middleware"
+	"github.com/appraisal-crm/request-service/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )

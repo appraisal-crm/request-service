@@ -69,8 +69,7 @@ docker compose -f infra/docker-compose.yml up -d
 
 # 2. Keycloak bootstrap — see section 3, required once per fresh volume
 
-# 3. Migrations
-cd services/request-service
+# 3. Migrations (from the repo root)
 make migrate-up
 
 # 4. Run
@@ -125,7 +124,7 @@ curl -s -X POST localhost:8080/requests \
 Every future service copies this structure — internalize it once.
 
 ```
-services/request-service/
+request-service/            ← repo root
   cmd/server/main.go       ← entry point: config, pgx pool, JWKS, DI wiring, http.Server
   config/config.go         ← ENV config, os.Getenv only (DATABASE_URL is required)
   internal/
@@ -146,7 +145,7 @@ services/request-service/
     middleware/auth.go     ← JWT via Keycloak JWKS (MicahParks/keyfunc), roles from realm_access.roles
     httputil/response.go   ← shared RespondJSON / RespondError
   migrations/              ← golang-migrate SQL, sequential numbering, always up+down pairs
-  docs/                    ← swag-generated; GITIGNORED — regenerate with `make generate`
+  api/                     ← swag-generated; GITIGNORED — regenerate with `make generate`
 ```
 
 **Request flow through the layers**, using `PATCH /requests/{id}/status` as the example:
@@ -205,17 +204,16 @@ These come from [CLAUDE.md](../CLAUDE.md) (hard rules) and `.claude/rules/go-ser
 
 **Add a migration:** next sequential number, both `.up.sql` and `.down.sql`, additive only. Apply with `make migrate-up`, verify rollback with `make migrate-down`.
 
-**Add a new service:** copy the request-service layout (structure above), module path `github.com/Meidorislav/appraisal-crm/services/<name>-service`. Domain errors go in `domain/errors.go`. Add its database to `infra/postgres/init/01-create-databases.sql` (fresh volumes only) and wire config via ENV.
+**Add a new service:** copy the request-service layout (structure above) into a new repository, module path `github.com/appraisal-crm/<name>-service`. Domain errors go in `domain/errors.go`. Add its database to `infra/postgres/init/01-create-databases.sql` (fresh volumes only) and wire config via ENV.
 
-**Run everything before pushing:**
+**Run everything before pushing (from the repo root):**
 ```bash
-cd services/request-service
 make generate && go build ./... && go vet ./... && go test ./...
 ```
 
 ## 8. Gotchas
 
-- **`go build ./...` fails on a fresh clone** with `no required module provides package .../docs` — the Swagger `docs/` package is gitignored. Run `make generate` (or `make build`, which does it for you) first.
+- **`go build ./...` fails on a fresh clone** with `no required module provides package .../api` — the Swagger `api/` package is gitignored. Run `make generate` (or `make build`, which does it for you) first.
 - **Keycloak is empty after `docker compose up`** — no realm, no users. Section 3 fixes it; the state persists in the `postgres_data` volume until you `docker compose down -v`.
 - **Token requests fail with "Account is not fully set up"** — the Keycloak user is missing email/first/last name or has pending required actions. The bootstrap in section 3 sets them.
 - **Tokens expire in 5 minutes** — a sudden 401 in Postman usually means "get a new token", not "auth is broken".

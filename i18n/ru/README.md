@@ -1,6 +1,9 @@
-# Appraisal CRM
+# Request Service
 
 > Русская версия · [English version](../../README.md)
+
+Первый бизнес-сервис платформы **Appraisal CRM** (Go): CRUD заявок + state machine жизненного цикла.
+Эталонная реализация для остальных сервисов платформы.
 
 CRM для компании по оценке имущества (квартиры, дома, земля, автомобили, коммерческая недвижимость).
 Оцифровывает полный цикл: клиент подаёт заявку → инспектор выезжает на объект → оценщик проводит оценку → клиент получает отчёт.
@@ -13,7 +16,11 @@ CRM для компании по оценке имущества (квартир
 
 | Путь | Что там |
 |------|---------|
-| `services/request-service/` | Первый бизнес-сервис (Go): CRUD заявок + state machine жизненного цикла. **Эталонная реализация для всех будущих сервисов.** |
+| `cmd/server/` | Точка входа, сборка зависимостей |
+| `internal/` | Домен, репозиторий, service (state machine), хендлеры, middleware |
+| `config/` | Конфигурация через ENV (только `os.Getenv`) |
+| `migrations/` | SQL-миграции (golang-migrate up/down) |
+| `api/` | Сгенерированные Swagger-доки (swaggo/swag — в gitignore, `make generate`) |
 | `infra/docker-compose.yml` | Локальная инфраструктура: PostgreSQL 17, Redis 7, Keycloak 26 |
 | `docs/brd/` | Бизнес-требования (en/ru) |
 | `docs/architecture/` | C4-диаграммы в Structurizr DSL (en/ru) |
@@ -23,7 +30,7 @@ CRM для компании по оценке имущества (квартир
 
 ## Архитектура в двух словах
 
-Микросервисы на Go, по одной базе PostgreSQL на сервис, взаимодействие только асинхронное через события Kafka (никаких прямых HTTP-вызовов между сервисами), Keycloak для OAuth2/OIDC, четыре React SPA по ролям за API Gateway.
+Микросервисы на Go, по одной базе PostgreSQL на сервис, взаимодействие только асинхронное через события Kafka (никаких прямых HTTP-вызовов между сервисами), Keycloak для OAuth2/OIDC, четыре React SPA по ролям за API Gateway. Каждый сервис живёт в своём репозитории; этот — `request-service`.
 
 **Реализовано сейчас:** инфраструктурный compose + `request-service` (CRUD, state machine, JWT/RBAC, Swagger, unit-тесты).
 **Ещё нет:** API Gateway, inspect-service, review-service (заблокирован — клиент не формализовал формулы оценки), notification-service, фронтенды, интеграция с Kafka.
@@ -40,14 +47,13 @@ docker compose -f infra/docker-compose.yml up -d
 #    realm `appraisal`, роли, публичный клиент, тестовые пользователи.
 #    См. docs/onboarding.md § «Настройка Keycloak» (5 минут, команды copy-paste).
 
-# 3. Миграции + запуск сервиса
-cd services/request-service
+# 3. Миграции + запуск сервиса (из корня репозитория)
 make migrate-up
 make run          # генерирует Swagger-доки, стартует на :8080
 ```
 
 Дальше — Swagger UI на http://localhost:8080/swagger/index.html.
-Получение токена и вызовы API: см. [README request-service](../../services/request-service/README.md).
+Получение токена и вызовы API: см. [гайд по QA-тестированию](../../docs/qa-testing.md).
 
 ## Процесс разработки
 

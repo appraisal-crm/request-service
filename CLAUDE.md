@@ -42,7 +42,7 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 
 **Done (merged to dev):**
 - `infra/docker-compose.yml` — PostgreSQL 17, Redis 7, Keycloak 26 (Kafka not yet in compose)
-- `services/request-service` — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests, optimistic locking on both PATCH endpoints (CAS, no version column), graceful shutdown
+- `request-service` (this repo) — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests, optimistic locking on both PATCH endpoints (CAS, no version column), graceful shutdown
 
 **Keycloak note:** the compose starts Keycloak with an empty database — the `appraisal` realm, roles, client, and test users must be bootstrapped manually (see `docs/onboarding.md` § Keycloak setup for copy-paste commands).
 
@@ -54,18 +54,18 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 - Frontend (all 4 SPAs)
 - Kafka integration in services
 
-## Go module paths
+## Go module path
 
-Each service is an independent module:
+Each service is an independent module in its own repository:
 ```
-github.com/Meidorislav/appraisal-crm/services/request-service
-github.com/Meidorislav/appraisal-crm/services/<name>-service   # pattern for new services
+github.com/appraisal-crm/request-service
+github.com/appraisal-crm/<name>-service   # pattern for new services
 ```
 
-## Go service structure (follow request-service as the reference)
+## Go service structure (this repo is the reference layout)
 
 ```
-services/<name>-service/
+<name>-service/
   cmd/server/          # entry point, wire DI
   internal/
     domain/            # entities, domain errors
@@ -76,7 +76,7 @@ services/<name>-service/
     httputil/          # shared response helpers
   config/              # ENV config (os.Getenv only)
   migrations/          # SQL files (golang-migrate up/down)
-  docs/                # Swagger (swaggo/swag)
+  api/                 # Swagger (swaggo/swag, generated)
 ```
 
 ## Code rules
@@ -107,15 +107,15 @@ services/<name>-service/
 # Start infrastructure
 docker compose -f infra/docker-compose.yml up -d
 
-# Run a service
-cd services/request-service && go run cmd/server/main.go
+# Run the service (from the repo root)
+go run cmd/server/main.go
 
 # Tests
-cd services/request-service && go test ./...
+go test ./...
 
-# Swagger — NOTE: docs/ is gitignored, so `go build ./...` FAILS on a fresh
+# Swagger — NOTE: api/ is gitignored, so `go build ./...` FAILS on a fresh
 # checkout until docs are generated (`make generate` or `make build`)
-swag init -g cmd/server/main.go -o docs
+swag init -g cmd/server/main.go -o api
 
 # Migrations
 migrate -path migrations/ -database "postgres://..." up
@@ -141,4 +141,4 @@ migrate -path migrations/ -database "postgres://..." up
 - BRD: `docs/brd/`
 - Architecture (C4 / Structurizr): `docs/architecture/`
 - ADRs: `docs/adr/`
-- API contracts: `services/*/docs/swagger.json` (generated, gitignored — run `make generate`)
+- API contracts: `api/swagger.json` (generated, gitignored — run `make generate`)

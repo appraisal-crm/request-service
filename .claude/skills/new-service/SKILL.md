@@ -8,7 +8,7 @@ argument-hint: <service-name> e.g. inspect-service
 
 ## Steps
 
-1. **Read `services/request-service/`** — it is the reference implementation. Study:
+1. **Read the `request-service` repo** — it is the reference implementation. Study:
    - `cmd/server/main.go` — entry point and dependency wiring
    - `internal/domain/` — entities and errors
    - `internal/repository/` — interface + PostgreSQL implementation

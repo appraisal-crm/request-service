@@ -69,8 +69,7 @@ docker compose -f infra/docker-compose.yml up -d
 
 # 2. Бутстрап Keycloak — раздел 3, обязателен один раз на свежий volume
 
-# 3. Миграции
-cd services/request-service
+# 3. Миграции (из корня репозитория)
 make migrate-up
 
 # 4. Запуск
@@ -125,7 +124,7 @@ curl -s -X POST localhost:8080/requests \
 Каждый будущий сервис копирует эту структуру — разберитесь один раз.
 
 ```
-services/request-service/
+request-service/            ← корень репозитория
   cmd/server/main.go       ← точка входа: конфиг, pgx pool, JWKS, DI, http.Server
   config/config.go         ← конфиг из ENV, только os.Getenv (DATABASE_URL обязателен)
   internal/
@@ -146,7 +145,7 @@ services/request-service/
     middleware/auth.go     ← JWT через Keycloak JWKS (MicahParks/keyfunc), роли из realm_access.roles
     httputil/response.go   ← общие RespondJSON / RespondError
   migrations/              ← SQL для golang-migrate, сквозная нумерация, всегда пары up+down
-  docs/                    ← генерируется swag; В GITIGNORE — пересоздавать через `make generate`
+  api/                     ← генерируется swag; В GITIGNORE — пересоздавать через `make generate`
 ```
 
 **Путь запроса через слои** на примере `PATCH /requests/{id}/status`:
@@ -205,17 +204,16 @@ Admin намеренно не может создавать заявки и дв
 
 **Добавить миграцию:** следующий номер по порядку, оба файла `.up.sql` и `.down.sql`, только аддитивно. Применить `make migrate-up`, проверить откат `make migrate-down`.
 
-**Добавить новый сервис:** скопировать структуру request-service (см. выше), путь модуля `github.com/Meidorislav/appraisal-crm/services/<name>-service`. Доменные ошибки — в `domain/errors.go`. Базу добавить в `infra/postgres/init/01-create-databases.sql` (сработает только на свежем volume), конфиг — через ENV.
+**Добавить новый сервис:** скопировать структуру request-service (см. выше) в новый репозиторий, путь модуля `github.com/appraisal-crm/<name>-service`. Доменные ошибки — в `domain/errors.go`. Базу добавить в `infra/postgres/init/01-create-databases.sql` (сработает только на свежем volume), конфиг — через ENV.
 
-**Прогнать всё перед пушем:**
+**Прогнать всё перед пушем (из корня репозитория):**
 ```bash
-cd services/request-service
 make generate && go build ./... && go vet ./... && go test ./...
 ```
 
 ## 8. Грабли
 
-- **`go build ./...` падает на свежем клоне** с `no required module provides package .../docs` — Swagger-пакет `docs/` в gitignore. Сначала `make generate` (или `make build`, он сделает это сам).
+- **`go build ./...` падает на свежем клоне** с `no required module provides package .../api` — Swagger-пакет `api/` в gitignore. Сначала `make generate` (или `make build`, он сделает это сам).
 - **Keycloak после `docker compose up` пустой** — ни realm, ни пользователей. Лечится разделом 3; состояние живёт в volume `postgres_data`, пока не сделаете `docker compose down -v`.
 - **Запрос токена падает с «Account is not fully set up»** — у пользователя Keycloak не заполнены email/имя/фамилия или висят required actions. Бутстрап из раздела 3 их проставляет.
 - **Токены живут 5 минут** — внезапный 401 в Postman обычно значит «возьми новый токен», а не «сломалась авторизация».

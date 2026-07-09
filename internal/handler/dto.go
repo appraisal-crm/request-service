@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/Meidorislav/appraisal-crm/services/request-service/internal/domain"
+	"github.com/appraisal-crm/request-service/internal/domain"
 	"github.com/google/uuid"
 )
 

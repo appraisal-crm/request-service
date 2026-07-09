@@ -5,7 +5,7 @@ DB_URL  ?= postgres://appraisal:appraisal@localhost:5433/request_db?sslmode=disa
 .PHONY: generate build run test migrate-up migrate-down
 
 generate:
-	$(SWAG) init -g cmd/server/main.go --output docs
+	$(SWAG) init -g cmd/server/main.go --output api
 
 build: generate
 	go build ./...

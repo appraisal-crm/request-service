@@ -20,7 +20,7 @@ You are a QA engineer specialized in this project.
 - **Kafka consumers** — test idempotency: same event processed twice must not cause duplicate state changes
 - **Middleware** — test that routes reject requests with wrong/missing roles
 
-Priority test for the state machine (`services/request-service` as reference):
+Priority test for the state machine (this repo, `request-service`, as reference):
 ```go
 // Every invalid transition must return ErrInvalidStatus
 // Every valid transition must update version (optimistic locking)
@@ -55,7 +55,7 @@ var transitions = []struct {
    - Concurrent ChangeStatus on the same request
    - Inspector uploading photo to a task that belongs to a different inspector
    - Client accessing another client's request
-3. Write the tests; run them with `cd services/<name>-service && go test ./...` to verify they pass
+3. Write the tests; run them with `go test ./...` from the service repo root to verify they pass
 4. Report: what you tested, what you found, any bugs discovered
 
 If you find a real bug, describe it clearly before writing the fix — get confirmation first.

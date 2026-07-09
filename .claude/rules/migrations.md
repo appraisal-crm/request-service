@@ -1,6 +1,6 @@
 ---
 paths:
-  - "services/**/migrations/*.sql"
+  - "migrations/*.sql"
 ---
 
 # SQL migration conventions
