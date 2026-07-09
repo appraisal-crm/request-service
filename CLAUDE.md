@@ -40,7 +40,7 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 
 ## Current state
 
-**Done (merged to dev):**
+**Done (in `dev`, released to `main`):**
 - `infra/docker-compose.yml` — PostgreSQL 17, Redis 7, Keycloak 26 (Kafka not yet in compose)
 - `request-service` (this repo) — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests, optimistic locking on both PATCH endpoints (CAS, no version column), graceful shutdown
 
@@ -56,7 +56,9 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 
 ## Go module path
 
-Each service is an independent module in its own repository:
+Not a monorepo. Every service — and each of the 4 frontend SPAs — is a separate
+repository under the `appraisal-crm` GitHub organization. Each Go service is an
+independent module:
 ```
 github.com/appraisal-crm/request-service
 github.com/appraisal-crm/<name>-service   # pattern for new services
@@ -133,6 +135,7 @@ migrate -path migrations/ -database "postgres://..." up
 
 - Tasks tracked in Jira, project **ACRM** (mdrslv.atlassian.net)
 - Branch from `dev`: `feature/<scope>` / `fix/<scope>`; PR into `dev`
+- `main` is the release branch — updated by merging `dev` → `main` on release; never PR features directly into `main`
 - Conventional commits with the Jira key: `fix(requests): ... (ACRM-84)`
 
 ## Documentation
