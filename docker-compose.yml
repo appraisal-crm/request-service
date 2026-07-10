@@ -141,9 +141,6 @@ services:
         condition: service_completed_successfully
 
 volumes:
-  # legacy names — existing data lives in them, do not rename
   postgres_data:
-    name: infra_postgres_data
   redis_data:
-    name: infra_redis_data
   kafka_data:
