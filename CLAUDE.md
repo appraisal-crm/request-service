@@ -90,18 +90,30 @@ github.com/appraisal-crm/<name>-service   # pattern for new services
 - Domain errors in `domain/errors.go` for new services; in request-service they live in `service/request.go` (legacy — follow the new pattern going forward)
 - HTTP status codes mapped in handler layer only
 - Each Kafka event is a distinct type in `domain/events.go`
+- Publish events via transactional outbox — write to the `outbox` table in the same tx as the state change; never publish from a handler
 - Optimistic locking for concurrent ChangeStatus (see request-service pattern)
 - Swagger annotations required for all public endpoints
 - Unit tests for business logic in `service/` (not integration tests)
 
 ## Kafka events
 
-| Event                    | Producer        | Consumers                              |
-|--------------------------|-----------------|----------------------------------------|
-| `request.created`        | request-service | notification-service                   |
-| `request.status_changed` | request-service | notification-service, inspect-service  |
-| `inspect.completed`      | inspect-service | request-service, notification-service  |
-| `report.ready`           | review-service  | notification-service                   |
+**One topic per producing service** — events are told apart by `event_type`, NOT by a
+topic-per-event. All events of one aggregate share a topic so they stay ordered per key.
+
+| event_type               | Topic            | Producer        | Consumers                              |
+|--------------------------|------------------|-----------------|----------------------------------------|
+| `request.created`        | `request.events` | request-service | notification-service                   |
+| `request.status_changed` | `request.events` | request-service | notification-service, inspect-service  |
+| `inspect.completed`      | `inspect.events` | inspect-service | request-service, notification-service  |
+| `report.ready`           | `review.events`  | review-service  | notification-service                   |
+
+**Event conventions:**
+- **Message key** = aggregate id (e.g. `request_id`) → per-aggregate ordering within a partition
+- **Format** = JSON envelope: `event_id`, `event_type`, `version`, `occurred_at`, `request_id`, `data{}` (no Schema Registry on MVP)
+- **Delivery** = at-least-once → consumers MUST be idempotent (dedup by `event_id`, e.g. Redis `SET NX EX`)
+- **Publishing** = transactional outbox (see Code rules) — never publish straight from a handler
+- **Schema evolution** = additive only; bump `version` for breaking changes
+- **Broker** = KRaft mode (no Zookeeper)
 
 ## Commands
 
