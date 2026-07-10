@@ -21,7 +21,8 @@ CRM для компании по оценке имущества (квартир
 | `config/` | Конфигурация через ENV (только `os.Getenv`) |
 | `migrations/` | SQL-миграции (golang-migrate up/down) |
 | `api/` | Сгенерированные Swagger-доки (swaggo/swag — в gitignore, `make generate`) |
-| `infra/docker-compose.yml` | Локальная инфраструктура: PostgreSQL 17, Redis 7, Keycloak 26 |
+| `docker-compose.yml` | Локальная инфраструктура: PostgreSQL 17, Redis 7, Keycloak 26, Kafka 4 (KRaft), Kafka UI; сам сервис — за профилем `app` |
+| `Dockerfile` | Образ сервиса (multi-stage; Swagger-доки генерируются при сборке) |
 | `docs/brd/` | Бизнес-требования (en/ru) |
 | `docs/architecture/` | C4-диаграммы в Structurizr DSL (en/ru) |
 | `docs/adr/` | Architecture Decision Records (en/ru) |
@@ -40,8 +41,8 @@ CRM для компании по оценке имущества (квартир
 ## Быстрый старт
 
 ```bash
-# 1. Инфраструктура (PostgreSQL :5433, Redis :6380, Keycloak :8180)
-docker compose -f infra/docker-compose.yml up -d
+# 1. Инфраструктура (PostgreSQL :5433, Redis :6380, Keycloak :8180, Kafka :9094, Kafka UI :8090)
+docker compose up -d
 
 # 2. Бутстрап Keycloak — compose поднимает Keycloak ПУСТЫМ, нужна разовая настройка:
 #    realm `appraisal`, роли, публичный клиент, тестовые пользователи.
@@ -50,6 +51,13 @@ docker compose -f infra/docker-compose.yml up -d
 # 3. Миграции + запуск сервиса (из корня репозитория)
 make migrate-up
 make run          # генерирует Swagger-доки, стартует на :8080
+```
+
+Альтернатива — весь стек в контейнерах: сервис собирается из `Dockerfile`,
+миграции применяются автоматически:
+
+```bash
+docker compose --profile app up -d --build
 ```
 
 Дальше — Swagger UI на http://localhost:8080/swagger/index.html.

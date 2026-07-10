@@ -49,6 +49,6 @@ argument-hint: <service-name> e.g. inspect-service
 
 6. **README.md** — include: how to run, required ENV vars, list of endpoints
 
-7. **docker-compose** — propose what to add to `infra/docker-compose.yml` (new DB, new service container)
+7. **docker-compose** — propose what to add to `docker-compose.yml` in the request-service repo root (new DB, new service container under the `app` profile)
 
 Ask for clarification on domain entities before writing them if needed.

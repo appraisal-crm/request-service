@@ -112,9 +112,7 @@ func TestChangeStatus_ValidTransition(t *testing.T) {
 }
 
 func TestChangeStatus_InvalidTransition(t *testing.T) {
-	// Covers ACRM-75 forbidden transitions (TC-SM-07..TC-SM-11) plus a few extra
-	// jumps. Every non-adjacent move, backward move, or same-status move must be
-	// rejected with ErrInvalidStatusTransition at the service layer.
+	// ACRM-75 TC-SM-07..11: non-adjacent, backward and same-status moves are rejected
 	cases := []struct {
 		name string
 		from domain.Status
@@ -227,8 +225,7 @@ func TestCreate_OptionalFieldsCanBeNil(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
-// Empty UpdateInput changes no fields but still bumps updated_at and persists.
-// This documents current behavior (the handler maps it to 200; see ACRM-77 TC-VAL-16).
+// ACRM-77 TC-VAL-16: empty UpdateInput changes no fields but still bumps updated_at.
 func TestUpdate_EmptyInputBumpsUpdatedAtWithoutChangingFields(t *testing.T) {
 	repo := &mockRepository{}
 	svc := NewRequestService(repo)
@@ -249,8 +246,7 @@ func TestUpdate_EmptyInputBumpsUpdatedAtWithoutChangingFields(t *testing.T) {
 
 	repo.On("GetByID", mock.Anything, id).Return(existing, nil)
 	repo.On("Update", mock.Anything, mock.MatchedBy(func(r *domain.Request) bool {
-		// fields untouched, updated_at moved forward, and the compare-and-set
-		// still uses the previous updated_at as the guard.
+		// fields untouched, updated_at bumped, CAS guard = previous updated_at
 		return r.InspectorID == &inspectorID && r.ObjectType == &oldType &&
 			r.Address == &oldAddress && r.Status == domain.StatusInProgress &&
 			r.UpdatedAt.After(prevUpdatedAt)
@@ -267,8 +263,7 @@ func TestUpdate_EmptyInputBumpsUpdatedAtWithoutChangingFields(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
-// An unexpected repository error from Update is propagated unchanged (not masked
-// as ErrNotFound or ErrConflict).
+// An unexpected repository error from Update is propagated unchanged.
 func TestUpdate_PropagatesUnknownRepoError(t *testing.T) {
 	repo := &mockRepository{}
 	svc := NewRequestService(repo)

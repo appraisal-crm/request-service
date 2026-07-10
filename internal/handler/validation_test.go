@@ -12,11 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// These tests automate the input-validation matrix from ACRM-77. They assert the
-// HTTP status and that invalid input never reaches the service layer (and thus can
-// never produce a 500). The state-machine transition matrix (ACRM-75) is covered
-// at the service layer in service/request_test.go and, for the HTTP mapping, by the
-// ChangeStatus tests in request_test.go.
+// Input-validation matrix from ACRM-77: invalid input never reaches the service layer.
 
 const validEmail = "client@example.com"
 const validPhone = "+79161234567"
@@ -36,12 +32,8 @@ func TestCreate_InputValidation(t *testing.T) {
 		{"TC-VAL-04 empty body", `{}`, http.StatusBadRequest, false},
 		{"TC-VAL-05 malformed email", `{"email":"not-an-email","phone_number":"` + validPhone + `"}`, http.StatusBadRequest, false},
 		{"TC-VAL-06 empty email", `{"email":"","phone_number":"` + validPhone + `"}`, http.StatusBadRequest, false},
-		// TC-VAL-07: ACRM-77 expects "89161234567" (no leading "+") to be rejected
-		// with 400, but go-playground's `e164` tag treats the leading "+" as optional
-		// (^\+?[1-9]\d{1,14}$), so it passes validation and reaches the service (201).
-		// Accepting the domestic "8..." form is fine for now: no phone-dependent
-		// feature (SMS/calls) exists yet, so strict E.164 is deliberately not enforced.
-		// Revisit if/when such a feature lands.
+		// TC-VAL-07: the `e164` tag treats the leading "+" as optional — strict E.164
+		// is deliberately not enforced until a phone-dependent feature lands
 		{"TC-VAL-07 phone missing plus is accepted (documents current behavior)", `{"email":"` + validEmail + `","phone_number":"89161234567"}`, http.StatusCreated, true},
 		{"TC-VAL-08 phone too short", `{"email":"` + validEmail + `","phone_number":"+7"}`, http.StatusBadRequest, false},
 		{"TC-VAL-09 valid phone", `{"email":"` + validEmail + `","phone_number":"` + validPhone + `"}`, http.StatusCreated, true},
@@ -78,8 +70,7 @@ func TestCreate_InputValidation(t *testing.T) {
 	}
 }
 
-// TC-VAL-15: a body larger than the 1 MB limit is rejected with 400 before it can
-// reach the service.
+// TC-VAL-15: a body over the 1 MB limit is rejected with 400 before the service.
 func TestCreate_BodyTooLarge_400(t *testing.T) {
 	svc := &mockService{}
 	h := newRequestHandler(svc)

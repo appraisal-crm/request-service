@@ -41,7 +41,7 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 ## Current state
 
 **Done (in `dev`, released to `main`):**
-- `infra/docker-compose.yml` — PostgreSQL 17, Redis 7, Keycloak 26 (Kafka not yet in compose)
+- `docker-compose.yml` (repo root) — PostgreSQL 17, Redis 7, Keycloak 26, Kafka 4 (KRaft) + Kafka UI; the service container + migrations run under the `app` profile (`docker compose --profile app up -d --build`), plain `docker compose up -d` starts infra only
 - `request-service` (this repo) — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests, optimistic locking on both PATCH endpoints (CAS, no version column), graceful shutdown
 
 **Keycloak note:** the compose starts Keycloak with an empty database — the `appraisal` realm, roles, client, and test users must be bootstrapped manually (see `docs/onboarding.md` § Keycloak setup for copy-paste commands).
@@ -118,8 +118,8 @@ topic-per-event. All events of one aggregate share a topic so they stay ordered 
 ## Commands
 
 ```bash
-# Start infrastructure
-docker compose -f infra/docker-compose.yml up -d
+# Start infrastructure (compose lives at the repo root)
+docker compose up -d
 
 # Run the service (from the repo root)
 go run cmd/server/main.go
