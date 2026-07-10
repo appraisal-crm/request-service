@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -19,12 +20,18 @@ func NewPostgresRepository(db *pgxpool.Pool) RequestRepository {
 	return &postgresRepository{db: db}
 }
 
-func (r *postgresRepository) Create(ctx context.Context, req *domain.Request) error {
+func (r *postgresRepository) Create(ctx context.Context, req *domain.Request, event domain.EventEnvelope) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	query := `
 		INSERT INTO requests (id, client_id, email, phone_number, inspector_id, object_type, address, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
-	_, err := r.db.Exec(ctx, query,
+	if _, err := tx.Exec(ctx, query,
 		req.ID,
 		req.ClientID,
 		req.Email,
@@ -35,7 +42,28 @@ func (r *postgresRepository) Create(ctx context.Context, req *domain.Request) er
 		req.Status,
 		req.CreatedAt,
 		req.UpdatedAt,
-	)
+	); err != nil {
+		return err
+	}
+
+	if err := insertOutbox(ctx, tx, event); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// insertOutbox writes the event into the outbox within the caller's tx, so the
+// event and the state change commit atomically (ADR-007).
+func insertOutbox(ctx context.Context, tx pgx.Tx, event domain.EventEnvelope) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	query := `
+		INSERT INTO outbox (event_id, topic, event_type, aggregate_id, payload)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err = tx.Exec(ctx, query, event.EventID, domain.TopicRequestEvents, event.EventType, event.RequestID, payload)
 	return err
 }
 
@@ -100,18 +128,25 @@ func (r *postgresRepository) Update(ctx context.Context, req *domain.Request, pr
 	return nil
 }
 
-func (r *postgresRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time) error {
+func (r *postgresRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time, event domain.EventEnvelope) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	query := `
 		UPDATE requests SET status = $1, updated_at = $2
 		WHERE id = $3 AND status = $4
 	`
-	tag, err := r.db.Exec(ctx, query, newStatus, updatedAt, id, oldStatus)
+	tag, err := tx.Exec(ctx, query, newStatus, updatedAt, id, oldStatus)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
+		// No row matched the CAS guard: the tx rolls back, so no outbox row is written.
 		var exists bool
-		if err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM requests WHERE id = $1)", id).Scan(&exists); err != nil {
+		if err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM requests WHERE id = $1)", id).Scan(&exists); err != nil {
 			return err
 		}
 		if !exists {
@@ -119,7 +154,11 @@ func (r *postgresRepository) ChangeStatus(ctx context.Context, id uuid.UUID, old
 		}
 		return ErrConflict
 	}
-	return nil
+
+	if err := insertOutbox(ctx, tx, event); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *postgresRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.Request, error) {

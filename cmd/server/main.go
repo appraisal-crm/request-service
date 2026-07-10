@@ -26,6 +26,7 @@ import (
 	_ "github.com/appraisal-crm/request-service/api"
 	"github.com/appraisal-crm/request-service/config"
 	"github.com/appraisal-crm/request-service/internal/handler"
+	"github.com/appraisal-crm/request-service/internal/outbox"
 	"github.com/appraisal-crm/request-service/internal/repository"
 	"github.com/appraisal-crm/request-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -75,6 +76,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	producer := outbox.NewProducer(strings.Split(cfg.KafkaBrokers, ","))
+	defer producer.Close()
+	relay := outbox.NewRelay(db, producer, cfg.OutboxPollInterval)
+	relayDone := make(chan struct{})
+	go func() {
+		relay.Run(ctx)
+		close(relayDone)
+	}()
+	slog.Info("outbox relay started", "interval", cfg.OutboxPollInterval)
+
 	errCh := make(chan error, 1)
 	go func() {
 		slog.Info("starting server", "addr", addr)
@@ -97,6 +108,8 @@ func main() {
 			slog.Error("server error", "error", err)
 			os.Exit(1)
 		}
+		<-relayDone
+		slog.Info("outbox relay stopped")
 		slog.Info("server stopped")
 	}
 }

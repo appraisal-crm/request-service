@@ -19,29 +19,39 @@ argument-hint: <event-name> out|in <service-name> e.g. inspect.completed out ins
 
 ## If PRODUCER (out)
 
-**1. `internal/domain/events.go`** — define the event type:
-```go
-const TopicInspectCompleted = "inspect.completed"
+Never publish to Kafka from a handler/service — that's a dual-write and loses
+events on crash. Write the event to the `outbox` table in the SAME tx as the
+state change; a relay worker publishes it (ADR-007).
 
-type InspectCompletedEvent struct {
-    RequestID   string    `json:"request_id"`
-    InspectorID string    `json:"inspector_id"`
+**1. `internal/domain/events.go`** — define the topic, event type and payload:
+```go
+const TopicInspectEvents = "inspect.events"
+const EventTypeInspectCompleted = "inspect.completed"
+
+// Payload for EventEnvelope.Data on EventTypeInspectCompleted.
+type InspectCompletedData struct {
+    InspectorID uuid.UUID `json:"inspector_id"`
     CompletedAt time.Time `json:"completed_at"`
     PhotoCount  int       `json:"photo_count"`
 }
 ```
 
-**2. `internal/kafka/producer.go`** — thin wrapper over `segmentio/kafka-go`:
+**2. Write to `outbox` in the SAME tx as the state change** — not to Kafka:
 ```go
-type Producer struct{ writer *kafka.Writer }
-
-func (p *Producer) PublishInspectCompleted(ctx context.Context, e domain.InspectCompletedEvent) error
+tx, err := pool.Begin(ctx)
+// ... UPDATE ... the aggregate ...
+event := domain.NewInspectCompletedEvent(...)
+// ... INSERT INTO outbox (event_id, topic, key, payload, ...) ... within tx ...
+if err := tx.Commit(ctx); err != nil { return err } // both rows, or neither
 ```
 
-**3. Publish AFTER transaction commit** — never inside it:
+**3. `internal/outbox/`** — relay worker publishes on a ticker via
+`segmentio/kafka-go` (ADR-007), then marks rows sent:
 ```go
-if err := tx.Commit(ctx); err != nil { return err }
-_ = s.producer.PublishInspectCompleted(ctx, event) // at-least-once; consumers must be idempotent
+//   SELECT ... FROM outbox WHERE published_at IS NULL
+//   producer.Publish(...)  → on success: UPDATE ... SET published_at = now()
+// Kafka down → rows wait and retry. Crash after publish but before marking →
+// republished → duplicate → consumers dedup by event_id (at-least-once).
 ```
 
 ---
@@ -73,10 +83,14 @@ Check before processing; skip if already seen.
 ## ENV variables to add in config.go
 
 ```go
-KafkaBrokers: os.Getenv("KAFKA_BROKERS"), // e.g. "kafka:9092"
-KafkaGroupID: os.Getenv("KAFKA_GROUP_ID"), // e.g. "inspect-service-group"
+KafkaBrokers:      os.Getenv("KAFKA_BROKERS"),       // e.g. "kafka:9092"
+OutboxPollInterval: os.Getenv("OUTBOX_POLL_INTERVAL"), // relay tick, e.g. "1s" (producer)
+KafkaGroupID:      os.Getenv("KAFKA_GROUP_ID"),      // consumer only, e.g. "inspect-service-group"
 ```
 
 ## Tests
 
-Define `EventPublisher` as an interface; mock it in service unit tests.
+- **Producer**: assert the service writes the `outbox` row in the same tx as the
+  state change (mock repo / inspect the row). No publisher is called from the service.
+- **Consumer**: define the handler over an interface and unit-test idempotency
+  (second delivery of the same `event_id` is a no-op).

@@ -2,7 +2,7 @@
 
 > English version · [Русская версия](i18n/ru/ADR-007-event-delivery-outbox.md)
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-07-10
 
 Refines [ADR-001](ADR-001-kafka.md) — that ADR chose Kafka as the broker; this one
@@ -69,6 +69,17 @@ or an `ON CONFLICT DO NOTHING` table).
 
 **5. KRaft mode, no Zookeeper.** The broker runs in KRaft mode — one fewer
 component to deploy and operate, and the supported topology going forward.
+
+**6. Client library: `segmentio/kafka-go`.** Both the relay producer and future
+consumers use [`segmentio/kafka-go`](https://github.com/segmentio/kafka-go).
+It is pure Go with a small, idiomatic `Writer`/`Reader` API that fits our needs:
+a polling relay does one synchronous write per outbox row, and consumer groups
+map directly onto `Reader`. The alternative, `franz-go`, is faster and richer
+(transactions, exactly-once, its own connection pooling) but heavier and built
+for throughput we do not have at MVP volume. Choosing `kafka-go` keeps the
+dependency surface small, consistent with the project's "no magic frameworks"
+stance. Revisit if we ever need Kafka transactions or hit throughput limits the
+simple `Writer` cannot meet.
 
 ## Consequences
 
