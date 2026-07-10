@@ -74,9 +74,8 @@ type reqOptions struct {
 	urlParams map[string]string
 }
 
-// newAuthedRequest builds an *http.Request as it would look after Auth + chi routing:
-// the user ID and roles are injected via the middleware context helpers, and any
-// path params are placed into a chi RouteContext so chi.URLParam works.
+// newAuthedRequest builds a request as it looks after Auth + chi routing
+// (middleware context helpers + chi RouteContext).
 func newAuthedRequest(method, target, body string, opt reqOptions) *http.Request {
 	var rdr io.Reader
 	if body != "" {
@@ -669,8 +668,7 @@ func TestList_ListAll_PageZeroDefaultsToOne(t *testing.T) {
 	svc.AssertExpectations(t)
 }
 
-// TC-LA-10 (ACRM-83): a page past the last one returns an empty data array in the
-// envelope (page/limit are still echoed back), not an error.
+// TC-LA-10 (ACRM-83): a page past the last one returns an empty data array, not an error.
 func TestList_ListAll_PageBeyondLastReturnsEmptyData(t *testing.T) {
 	svc := &mockService{}
 	h := newRequestHandler(svc)

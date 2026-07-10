@@ -69,8 +69,7 @@ func (r *postgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 	return &req, nil
 }
 
-// Update deliberately does not touch status — status changes go through
-// ChangeStatus only, so a stale read here can never roll the lifecycle back.
+// Update deliberately does not touch status — status changes go through ChangeStatus only.
 func (r *postgresRepository) Update(ctx context.Context, req *domain.Request, prevUpdatedAt time.Time) error {
 	query := `
 		UPDATE requests

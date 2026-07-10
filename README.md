@@ -21,7 +21,8 @@ Commercial project built for a real client. Code goes to production.
 | `config/` | ENV configuration (`os.Getenv` only) |
 | `migrations/` | SQL migrations (golang-migrate up/down) |
 | `api/` | Generated Swagger docs (swaggo/swag — gitignored, run `make generate`) |
-| `infra/docker-compose.yml` | Local infrastructure: PostgreSQL 17, Redis 7, Keycloak 26 |
+| `docker-compose.yml` | Local infrastructure: PostgreSQL 17, Redis 7, Keycloak 26, Kafka 4 (KRaft), Kafka UI; the service itself behind the `app` profile |
+| `Dockerfile` | Service image (multi-stage; generates Swagger docs during build) |
 | `docs/brd/` | Business Requirements Document (en/ru) |
 | `docs/architecture/` | C4 diagrams in Structurizr DSL (en/ru) |
 | `docs/adr/` | Architecture Decision Records (en/ru) |
@@ -47,8 +48,8 @@ See [C4 diagrams](docs/architecture/README.md) for the target picture and [ADRs]
 ## Quickstart
 
 ```bash
-# 1. Infrastructure (PostgreSQL :5433, Redis :6380, Keycloak :8180)
-docker compose -f infra/docker-compose.yml up -d
+# 1. Infrastructure (PostgreSQL :5433, Redis :6380, Keycloak :8180, Kafka :9094, Kafka UI :8090)
+docker compose up -d
 
 # 2. Keycloak bootstrap — the compose starts Keycloak EMPTY, one-time setup required:
 #    realm `appraisal`, roles, a public client, test users.
@@ -57,6 +58,13 @@ docker compose -f infra/docker-compose.yml up -d
 # 3. Migrations + run the service (from the repo root)
 make migrate-up
 make run          # generates Swagger docs, starts on :8080
+```
+
+Alternatively, run the whole stack in containers — the service is built from the
+`Dockerfile` and migrations apply automatically:
+
+```bash
+docker compose --profile app up -d --build
 ```
 
 Then open Swagger UI at http://localhost:8080/swagger/index.html.
@@ -80,6 +88,9 @@ Then open Swagger UI at http://localhost:8080/swagger/index.html.
 | `make test`         | Run unit tests                     |
 | `make migrate-up`   | Apply all pending migrations       |
 | `make migrate-down` | Roll back the last migration       |
+| `make up`           | Start infrastructure containers    |
+| `make up-all`       | Start infra + the service in containers |
+| `make down`         | Stop the whole stack               |
 
 ## Authentication
 

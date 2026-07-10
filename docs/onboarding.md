@@ -62,10 +62,12 @@ Requirements: Go 1.22+, Docker, [migrate CLI](https://github.com/golang-migrate/
 
 ```bash
 # 1. Infrastructure
-docker compose -f infra/docker-compose.yml up -d
+docker compose up -d
 # PostgreSQL → localhost:5433 (user/pass: appraisal/appraisal)
 # Redis      → localhost:6380
 # Keycloak   → localhost:8180 (admin/admin)
+# Kafka      → localhost:9094 (from containers: kafka:9092)
+# Kafka UI   → localhost:8090
 
 # 2. Keycloak bootstrap — see section 3, required once per fresh volume
 
