@@ -19,6 +19,6 @@ An ADR documents a significant architectural decision: what was decided, why, an
 ## Statuses
 
 - **Proposed** — under discussion
-- **Proposed** — decision made and in effect
+- **Accepted** — decision made and in effect
 - **Deprecated** — no longer relevant
 - **Superseded** — replaced by a newer ADR
