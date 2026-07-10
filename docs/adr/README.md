@@ -14,10 +14,11 @@ An ADR documents a significant architectural decision: what was decided, why, an
 | [ADR-004](ADR-004-open-source-license.md) | Open Source License (MIT / Apache 2.0) | Proposed |
 | [ADR-005](ADR-005-go-backend.md) | Go for Backend Services | Proposed |
 | [ADR-006](ADR-006-s3-storage.md) | S3 Yandex Cloud for File Storage | Proposed |
+| [ADR-007](ADR-007-event-delivery-outbox.md) | Reliable Event Publishing via Transactional Outbox | Proposed |
 
 ## Statuses
 
 - **Proposed** — under discussion
-- **Proposed** — decision made and in effect
+- **Accepted** — decision made and in effect
 - **Deprecated** — no longer relevant
 - **Superseded** — replaced by a newer ADR
