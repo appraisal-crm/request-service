@@ -17,8 +17,8 @@ type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) Create(ctx context.Context, req *domain.Request) error {
-	return m.Called(ctx, req).Error(0)
+func (m *mockRepository) Create(ctx context.Context, req *domain.Request, event domain.EventEnvelope) error {
+	return m.Called(ctx, req, event).Error(0)
 }
 
 func (m *mockRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Request, error) {
@@ -33,8 +33,8 @@ func (m *mockRepository) Update(ctx context.Context, req *domain.Request, prevUp
 	return m.Called(ctx, req, prevUpdatedAt).Error(0)
 }
 
-func (m *mockRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time) error {
-	return m.Called(ctx, id, oldStatus, newStatus, updatedAt).Error(0)
+func (m *mockRepository) ChangeStatus(ctx context.Context, id uuid.UUID, oldStatus, newStatus domain.Status, updatedAt time.Time, event domain.EventEnvelope) error {
+	return m.Called(ctx, id, oldStatus, newStatus, updatedAt, event).Error(0)
 }
 
 func (m *mockRepository) ListByClientID(ctx context.Context, clientID uuid.UUID) ([]*domain.Request, error) {
@@ -61,6 +61,8 @@ func TestCreate_SetsStatusNewAndGeneratesID(t *testing.T) {
 	repo.On("Create", mock.Anything, mock.MatchedBy(func(r *domain.Request) bool {
 		return r.ClientID == clientID && r.Status == domain.StatusNew && r.ID != uuid.Nil &&
 			r.Email == "client@example.com" && r.PhoneNumber == "+71234567890"
+	}), mock.MatchedBy(func(e domain.EventEnvelope) bool {
+		return e.EventType == domain.EventTypeRequestCreated && e.EventID != uuid.Nil
 	})).Return(nil)
 
 	req, err := svc.Create(context.Background(), CreateInput{
@@ -100,7 +102,12 @@ func TestChangeStatus_ValidTransition(t *testing.T) {
 			existing := &domain.Request{ID: id, Status: tt.from}
 
 			repo.On("GetByID", mock.Anything, id).Return(existing, nil)
-			repo.On("ChangeStatus", mock.Anything, id, tt.from, tt.to, mock.AnythingOfType("time.Time")).Return(nil)
+			repo.On("ChangeStatus", mock.Anything, id, tt.from, tt.to, mock.AnythingOfType("time.Time"),
+				mock.MatchedBy(func(e domain.EventEnvelope) bool {
+					d, ok := e.Data.(domain.RequestStatusChangedData)
+					return e.EventType == domain.EventTypeRequestStatusChanged && e.RequestID == id &&
+						ok && d.OldStatus == tt.from && d.NewStatus == tt.to
+				})).Return(nil)
 
 			req, err := svc.ChangeStatus(context.Background(), id, tt.to)
 
@@ -211,7 +218,7 @@ func TestCreate_OptionalFieldsCanBeNil(t *testing.T) {
 
 	repo.On("Create", mock.Anything, mock.MatchedBy(func(r *domain.Request) bool {
 		return r.ObjectType == nil && r.Address == nil
-	})).Return(nil)
+	}), mock.AnythingOfType("domain.EventEnvelope")).Return(nil)
 
 	req, err := svc.Create(context.Background(), CreateInput{
 		ClientID:    uuid.New(),

@@ -45,7 +45,8 @@ func (s *requestService) Create(ctx context.Context, in CreateInput) (*domain.Re
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	if err := s.repo.Create(ctx, req); err != nil {
+	event := domain.NewRequestCreatedEvent(*req)
+	if err := s.repo.Create(ctx, req, event); err != nil {
 		slog.ErrorContext(ctx, "failed to create request", "error", err, "client_id", in.ClientID)
 		return nil, err
 	}
@@ -119,8 +120,9 @@ func (s *requestService) ChangeStatus(ctx context.Context, id uuid.UUID, newStat
 
 	oldStatus := req.Status
 	updatedAt := time.Now()
+	event := domain.NewRequestStatusChangedEvent(id, oldStatus, newStatus)
 
-	if err := s.repo.ChangeStatus(ctx, id, oldStatus, newStatus, updatedAt); err != nil {
+	if err := s.repo.ChangeStatus(ctx, id, oldStatus, newStatus, updatedAt, event); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return nil, ErrNotFound
 		}
