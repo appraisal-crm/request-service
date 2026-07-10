@@ -62,10 +62,12 @@ new → in_progress → inspection_scheduled → inspection_completed → apprai
 
 ```bash
 # 1. Инфраструктура
-docker compose -f infra/docker-compose.yml up -d
+docker compose up -d
 # PostgreSQL → localhost:5433 (user/pass: appraisal/appraisal)
 # Redis      → localhost:6380
 # Keycloak   → localhost:8180 (admin/admin)
+# Kafka      → localhost:9094 (из контейнеров: kafka:9092)
+# Kafka UI   → localhost:8090
 
 # 2. Бутстрап Keycloak — раздел 3, обязателен один раз на свежий volume
 

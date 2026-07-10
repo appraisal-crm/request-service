@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -57,14 +58,11 @@ func Auth(jwks keyfunc.Keyfunc) func(http.Handler) http.Handler {
 }
 
 // ContextWithUserID returns a copy of ctx carrying the authenticated user ID.
-// It is the canonical way to populate the context that UserIDFromContext reads,
-// used by Auth and by tests that need to simulate an authenticated request.
 func ContextWithUserID(ctx context.Context, id uuid.UUID) context.Context {
 	return context.WithValue(ctx, contextKeyUserID, id)
 }
 
 // ContextWithRoles returns a copy of ctx carrying the caller's realm roles.
-// It is the canonical way to populate the context that RolesFromContext reads.
 func ContextWithRoles(ctx context.Context, roles []string) context.Context {
 	return context.WithValue(ctx, contextKeyRoles, roles)
 }
@@ -80,12 +78,7 @@ func RolesFromContext(ctx context.Context) []string {
 }
 
 func HasRole(ctx context.Context, role string) bool {
-	for _, r := range RolesFromContext(ctx) {
-		if r == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(RolesFromContext(ctx), role)
 }
 
 func RequireRoles(roles ...string) func(http.Handler) http.Handler {

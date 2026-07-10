@@ -44,11 +44,27 @@ func (h *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 - Table-driven tests for state machine transitions — mandatory
 - Do not test handlers directly unless there is a strong reason
 
-## Kafka
+## Kafka — transactional outbox
+
+Never publish to Kafka from a handler/service directly — that's a dual-write and
+loses events on crash. Write the event to the `outbox` table in the SAME DB
+transaction as the state change; a background relay worker publishes it and marks
+it sent.
 
 ```go
-// Publish event AFTER the transaction commits, never inside it.
-// Use at-least-once semantics — consumers must be idempotent.
-if err := tx.Commit(ctx); err != nil { return err }
-_ = s.producer.Publish(ctx, event)
+// Same transaction as the state change:
+tx, err := pool.Begin(ctx)
+// ... UPDATE requests ... (optimistic lock: WHERE status = oldStatus)
+// ... INSERT INTO outbox (event_id, topic, key, payload, ...) ...
+if err := tx.Commit(ctx); err != nil { return err } // both rows commit, or neither
+
+// A separate relay worker (background goroutine) publishes:
+//   SELECT ... FROM outbox WHERE published_at IS NULL
+//   producer.Publish(...)  → on success: UPDATE ... SET published_at = now()
+// Kafka down → events wait in outbox and retry. Crash after publish but
+// before marking → republished → duplicate → consumers dedup by event_id.
 ```
+
+- Broker runs in **KRaft mode** (no Zookeeper)
+- Message key = aggregate id (per-aggregate ordering within a partition)
+- at-least-once delivery → consumers idempotent by `event_id`
