@@ -183,7 +183,7 @@ These come from [CLAUDE.md](../CLAUDE.md) (hard rules) and `.claude/rules/go-ser
 - **No frameworks** beyond chi, pgx, playground/validator. Config via `os.Getenv` only — no viper/cobra.
 - **Domain errors** are typed sentinels mapped to HTTP codes **in the handler layer only**. New services put them in `internal/domain/errors.go` (request-service keeps them in `service/request.go` — legacy, don't copy that).
 - **Migrations**: `00000N_description.up.sql` + `.down.sql`, sequential, both directions always. **Never modify an applied migration** — only add new ones.
-- **Events**: each Kafka event is a distinct type in `domain/events.go`; publish **after** the DB transaction commits; consumers must be idempotent (at-least-once).
+- **Events**: each Kafka event is a distinct type in `domain/events.go`; never publish from a handler/service — write to the `outbox` table in the **same tx** as the state change and let the relay worker publish it ([ADR-007](adr/ADR-007-event-delivery-outbox.md)); consumers must be idempotent (at-least-once).
 - **No synchronous calls between business services**, no cross-database JOINs.
 - **Swagger annotations** on every public endpoint (`make generate` before committing handler changes).
 - **Unit tests** for business logic live in `service/` with a mocked repository; state-machine transitions get table-driven tests — mandatory.
@@ -205,6 +205,20 @@ These come from [CLAUDE.md](../CLAUDE.md) (hard rules) and `.claude/rules/go-ser
 **Add an endpoint:** DTO with validate tags in `dto.go` → handler method with Swagger annotations → route + `RequireRoles` in `route.go` → service method on the interface + implementation → repository if needed → unit tests for the service logic → `make generate`.
 
 **Add a migration:** next sequential number, both `.up.sql` and `.down.sql`, additive only. Apply with `make migrate-up`, verify rollback with `make migrate-down`.
+
+**Verify the outbox end-to-end** (with the `app` profile up): create a request, then confirm the event was written in the same tx and published by the relay.
+```bash
+# 1. Create a request (needs a client-role JWT) — note the returned "id".
+# 2. The row is written to outbox in the same tx as the request:
+docker exec appraisal-postgres psql -U appraisal -d request_db \
+  -c "SELECT event_type, published_at FROM outbox WHERE aggregate_id='<id>' ORDER BY id;"
+#    published_at is NULL until the relay publishes it (within OUTBOX_POLL_INTERVAL, ~1s).
+# 3. The message lands on the topic, keyed by request_id:
+docker exec appraisal-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server kafka:9092 --topic request.events --from-beginning \
+  --timeout-ms 6000 --property print.key=true
+# Or browse it in Kafka UI → http://localhost:8090 → topic request.events.
+```
 
 **Add a new service:** copy the request-service layout (structure above) into a new repository, module path `github.com/appraisal-crm/<name>-service`. Domain errors go in `domain/errors.go`. Add its database to `infra/postgres/init/01-create-databases.sql` (fresh volumes only) and wire config via ENV.
 
