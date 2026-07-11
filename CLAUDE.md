@@ -63,9 +63,11 @@ github.com/appraisal-crm/request-service
 github.com/appraisal-crm/<name>-service   # pattern for new services
 ```
 
-The **frontend is a single monorepo** — all 4 SPAs (client / appraiser / inspector /
-admin) live in `github.com/appraisal-crm/appraisal-frontend` (pnpm workspaces +
-Turborepo) so they can share auth, API-client types and the design system. See
+The **frontend is a single monorepo** — `github.com/appraisal-crm/appraisal-frontend`
+(pnpm workspaces + Turborepo), split by the external/internal boundary into two
+deployable apps: `apps/client` (public portal) and `apps/office` (internal staff app,
+role-gated in-app for appraiser/inspector/admin). Shared `packages/` hold auth,
+API-client types and the design system. See
 [ADR-008](docs/adr/ADR-008-frontend-repo-structure.md).
 
 ## Go service structure (this repo is the reference layout)
