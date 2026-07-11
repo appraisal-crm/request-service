@@ -56,13 +56,17 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 
 ## Go module path
 
-Not a monorepo. Every service — and each of the 4 frontend SPAs — is a separate
-repository under the `appraisal-crm` GitHub organization. Each Go service is an
-independent module:
+Backend is polyrepo: every service is a separate repository under the
+`appraisal-crm` GitHub organization, and each Go service is an independent module:
 ```
 github.com/appraisal-crm/request-service
 github.com/appraisal-crm/<name>-service   # pattern for new services
 ```
+
+The **frontend is a single monorepo** — all 4 SPAs (client / appraiser / inspector /
+admin) live in `github.com/appraisal-crm/appraisal-frontend` (pnpm workspaces +
+Turborepo) so they can share auth, API-client types and the design system. See
+[ADR-008](docs/adr/ADR-008-frontend-repo-structure.md).
 
 ## Go service structure (this repo is the reference layout)
 

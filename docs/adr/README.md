@@ -15,6 +15,7 @@ An ADR documents a significant architectural decision: what was decided, why, an
 | [ADR-005](ADR-005-go-backend.md) | Go for Backend Services | Proposed |
 | [ADR-006](ADR-006-s3-storage.md) | S3 Yandex Cloud for File Storage | Proposed |
 | [ADR-007](ADR-007-event-delivery-outbox.md) | Reliable Event Publishing via Transactional Outbox | Proposed |
+| [ADR-008](ADR-008-frontend-repo-structure.md) | Frontend as a Single Monorepo | Accepted |
 
 ## Statuses
 
