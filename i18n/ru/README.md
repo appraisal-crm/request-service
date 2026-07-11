@@ -41,10 +41,12 @@ CRM для компании по оценке имущества (квартир
 ## Быстрый старт
 
 ```bash
-# 1. Инфраструктура (PostgreSQL :5433, Redis :6380, Keycloak :8180, Kafka :9094, Kafka UI :8090)
+# 1a. Общая инфра — Keycloak :8180, Kafka :9094, Kafka UI :8090 (корневой ../infra)
+docker compose -f ../infra/docker-compose.yml up -d
+# 1b. Data-инфра этого сервиса — PostgreSQL :5433, Redis :6380
 docker compose up -d
 
-# 2. Бутстрап Keycloak — compose поднимает Keycloak ПУСТЫМ, нужна разовая настройка:
+# 2. Бутстрап Keycloak — общая инфра поднимает Keycloak ПУСТЫМ, нужна разовая настройка:
 #    realm `appraisal`, роли, публичный клиент, тестовые пользователи.
 #    См. docs/onboarding.md § «Настройка Keycloak» (5 минут, команды copy-paste).
 
@@ -54,9 +56,10 @@ make run          # генерирует Swagger-доки, стартует на
 ```
 
 Альтернатива — весь стек в контейнерах: сервис собирается из `Dockerfile`,
-миграции применяются автоматически:
+миграции применяются автоматически (сначала должна быть поднята общая `../infra`):
 
 ```bash
+docker compose -f ../infra/docker-compose.yml up -d
 docker compose --profile app up -d --build
 ```
 

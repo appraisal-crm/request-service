@@ -20,7 +20,7 @@
 #
 # Requirements: bash, curl, jq.
 #
-# Configuration via environment variables (defaults match infra/docker-compose.yml
+# Configuration via environment variables (defaults match docker-compose.yml
 # and docs/qa-testing.md):
 #
 #   BASE_URL         request-service base URL     (default http://localhost:8080)

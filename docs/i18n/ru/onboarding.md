@@ -62,12 +62,13 @@ new → in_progress → inspection_scheduled → inspection_completed → apprai
 
 ```bash
 # 1. Инфраструктура
-docker compose up -d
-# PostgreSQL → localhost:5433 (user/pass: appraisal/appraisal)
-# Redis      → localhost:6380
-# Keycloak   → localhost:8180 (admin/admin)
-# Kafka      → localhost:9094 (из контейнеров: kafka:9092)
-# Kafka UI   → localhost:8090
+docker compose -f ../infra/docker-compose.yml up -d   # общая: Keycloak, Kafka
+docker compose up -d                                  # этот сервис: Postgres, Redis
+# PostgreSQL → localhost:5433 (user/pass: appraisal/appraisal)  [этот сервис]
+# Redis      → localhost:6380                                   [этот сервис]
+# Keycloak   → localhost:8180 (admin/admin)                     [общая ../infra]
+# Kafka      → localhost:9094 (из контейнеров: kafka:9092)      [общая ../infra]
+# Kafka UI   → localhost:8090                                   [общая ../infra]
 
 # 2. Бутстрап Keycloak — раздел 3, обязателен один раз на свежий volume
 
@@ -206,7 +207,7 @@ Admin намеренно не может создавать заявки и дв
 
 **Добавить миграцию:** следующий номер по порядку, оба файла `.up.sql` и `.down.sql`, только аддитивно. Применить `make migrate-up`, проверить откат `make migrate-down`.
 
-**Добавить новый сервис:** скопировать структуру request-service (см. выше) в новый репозиторий, путь модуля `github.com/appraisal-crm/<name>-service`. Доменные ошибки — в `domain/errors.go`. Базу добавить в `infra/postgres/init/01-create-databases.sql` (сработает только на свежем volume), конфиг — через ENV.
+**Добавить новый сервис:** скопировать структуру request-service (см. выше) в новый репозиторий, путь модуля `github.com/appraisal-crm/<name>-service`. Доменные ошибки — в `domain/errors.go`. Дать ему свой `docker-compose.yml` (свой Postgres + Redis, база задаётся через `POSTGRES_DB`) и подключить app-контейнер к общей сети `appraisal_shared` (описана в корневом `infra/`) ради Kafka/Keycloak; конфиг — через ENV.
 
 **Прогнать всё перед пушем (из корня репозитория):**
 ```bash
@@ -216,7 +217,7 @@ make generate && go build ./... && go vet ./... && go test ./...
 ## 8. Грабли
 
 - **`go build ./...` падает на свежем клоне** с `no required module provides package .../api` — Swagger-пакет `api/` в gitignore. Сначала `make generate` (или `make build`, он сделает это сам).
-- **Keycloak после `docker compose up` пустой** — ни realm, ни пользователей. Лечится разделом 3; состояние живёт в volume `postgres_data`, пока не сделаете `docker compose down -v`.
+- **Keycloak при первом запуске пустой** — ни realm, ни пользователей. Лечится разделом 3; состояние живёт в volume `keycloak_postgres_data` общей инфры (в `../infra`), пока не сделаете `docker compose -f ../infra/docker-compose.yml down -v`.
 - **Запрос токена падает с «Account is not fully set up»** — у пользователя Keycloak не заполнены email/имя/фамилия или висят required actions. Бутстрап из раздела 3 их проставляет.
 - **Токены живут 5 минут** — внезапный 401 в Postman обычно значит «возьми новый токен», а не «сломалась авторизация».
 - **Нестандартные порты**, чтобы не конфликтовать с локальными сервисами: PostgreSQL **5433**, Redis **6380**, Keycloak **8180**.
