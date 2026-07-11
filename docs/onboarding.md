@@ -62,12 +62,13 @@ Requirements: Go 1.22+, Docker, [migrate CLI](https://github.com/golang-migrate/
 
 ```bash
 # 1. Infrastructure
-docker compose up -d
-# PostgreSQL → localhost:5433 (user/pass: appraisal/appraisal)
-# Redis      → localhost:6380
-# Keycloak   → localhost:8180 (admin/admin)
-# Kafka      → localhost:9094 (from containers: kafka:9092)
-# Kafka UI   → localhost:8090
+docker compose -f ../infra/docker-compose.yml up -d   # shared: Keycloak, Kafka
+docker compose up -d                                  # this service: Postgres, Redis
+# PostgreSQL → localhost:5433 (user/pass: appraisal/appraisal)  [this service]
+# Redis      → localhost:6380                                   [this service]
+# Keycloak   → localhost:8180 (admin/admin)                     [shared ../infra]
+# Kafka      → localhost:9094 (from containers: kafka:9092)     [shared ../infra]
+# Kafka UI   → localhost:8090                                   [shared ../infra]
 
 # 2. Keycloak bootstrap — see section 3, required once per fresh volume
 
@@ -220,7 +221,7 @@ docker exec appraisal-kafka /opt/kafka/bin/kafka-console-consumer.sh \
 # Or browse it in Kafka UI → http://localhost:8090 → topic request.events.
 ```
 
-**Add a new service:** copy the request-service layout (structure above) into a new repository, module path `github.com/appraisal-crm/<name>-service`. Domain errors go in `domain/errors.go`. Add its database to `infra/postgres/init/01-create-databases.sql` (fresh volumes only) and wire config via ENV.
+**Add a new service:** copy the request-service layout (structure above) into a new repository, module path `github.com/appraisal-crm/<name>-service`. Domain errors go in `domain/errors.go`. Give it its own `docker-compose.yml` (own Postgres + Redis, `POSTGRES_DB` set to its database) and attach its app container to the shared `appraisal_shared` network (defined in the repo-root `infra/`) for Kafka/Keycloak; wire config via ENV.
 
 **Run everything before pushing (from the repo root):**
 ```bash
@@ -230,7 +231,7 @@ make generate && go build ./... && go vet ./... && go test ./...
 ## 8. Gotchas
 
 - **`go build ./...` fails on a fresh clone** with `no required module provides package .../api` — the Swagger `api/` package is gitignored. Run `make generate` (or `make build`, which does it for you) first.
-- **Keycloak is empty after `docker compose up`** — no realm, no users. Section 3 fixes it; the state persists in the `postgres_data` volume until you `docker compose down -v`.
+- **Keycloak is empty on first start** — no realm, no users. Section 3 fixes it; the state persists in the shared infra's `keycloak_postgres_data` volume (in `../infra`) until you `docker compose -f ../infra/docker-compose.yml down -v`.
 - **Token requests fail with "Account is not fully set up"** — the Keycloak user is missing email/first/last name or has pending required actions. The bootstrap in section 3 sets them.
 - **Tokens expire in 5 minutes** — a sudden 401 in Postman usually means "get a new token", not "auth is broken".
 - **Non-standard ports** to avoid collisions: PostgreSQL **5433**, Redis **6380**, Keycloak **8180**.

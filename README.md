@@ -48,10 +48,12 @@ See [C4 diagrams](docs/architecture/README.md) for the target picture and [ADRs]
 ## Quickstart
 
 ```bash
-# 1. Infrastructure (PostgreSQL :5433, Redis :6380, Keycloak :8180, Kafka :9094, Kafka UI :8090)
+# 1a. Shared infra — Keycloak :8180, Kafka :9094, Kafka UI :8090 (repo-root ../infra)
+docker compose -f ../infra/docker-compose.yml up -d
+# 1b. This service's data infra — PostgreSQL :5433, Redis :6380
 docker compose up -d
 
-# 2. Keycloak bootstrap — the compose starts Keycloak EMPTY, one-time setup required:
+# 2. Keycloak bootstrap — the shared infra starts Keycloak EMPTY, one-time setup required:
 #    realm `appraisal`, roles, a public client, test users.
 #    Follow docs/onboarding.md § "Keycloak setup" (5 minutes, copy-paste commands).
 
@@ -61,9 +63,10 @@ make run          # generates Swagger docs, starts on :8080
 ```
 
 Alternatively, run the whole stack in containers — the service is built from the
-`Dockerfile` and migrations apply automatically:
+`Dockerfile` and migrations apply automatically (shared `../infra` must be up first):
 
 ```bash
+docker compose -f ../infra/docker-compose.yml up -d
 docker compose --profile app up -d --build
 ```
 
