@@ -43,6 +43,7 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 **Done (in `dev`, released to `main`):**
 - `docker-compose.yml` (this repo) — owns this service's data infra only: PostgreSQL 17 (`request_db`, :5433) + Redis 7 (:6380); the service container + migrations run under the `app` profile (`docker compose --profile app up -d --build`), plain `docker compose up -d` starts data infra only. Shared Kafka 4 (KRaft) + Kafka UI + Keycloak 26 live in the repo-root `../infra/docker-compose.yml`; the app container joins its external `appraisal_shared` network to reach them — bring `../infra` up first
 - `request-service` (this repo) — mvp working: CRUD, state machine, JWT auth, RBAC, Swagger, unit tests, optimistic locking on both PATCH endpoints (CAS, no version column), graceful shutdown
+- Kafka integration — Outbox Relay producer (`request.created`, `request.status_changed`) + Consumer Group with Redis dedup (`inspect.completed` -> `inspection_completed`, `report.ready` -> `report_sent`)
 
 **Keycloak note:** the shared `../infra` compose starts Keycloak with an empty database — the `appraisal` realm, roles, client, and test users must be bootstrapped manually (see `docs/onboarding.md` § Keycloak setup for copy-paste commands).
 

@@ -12,7 +12,12 @@ type Config struct {
 	JWKSUrl            string
 	AllowedOrigins     string
 	KafkaBrokers       string
+	KafkaConsumerGroup string
+	KafkaInspectTopic  string
+	KafkaReviewTopic   string
 	OutboxPollInterval time.Duration
+	RedisAddr          string
+	RedisPassword      string
 }
 
 func Load() *Config {
@@ -27,7 +32,12 @@ func Load() *Config {
 		JWKSUrl:            getEnv("JWKS_URL", "http://localhost:8180/realms/appraisal/protocol/openid-connect/certs"),
 		AllowedOrigins:     getEnv("ALLOWED_ORIGINS", "*"),
 		KafkaBrokers:       getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaConsumerGroup: getEnv("KAFKA_CONSUMER_GROUP", "request-service"),
+		KafkaInspectTopic:  getEnv("KAFKA_INSPECT_TOPIC", "inspect.events"),
+		KafkaReviewTopic:   getEnv("KAFKA_REVIEW_TOPIC", "review.events"),
 		OutboxPollInterval: getDurationEnv("OUTBOX_POLL_INTERVAL", time.Second),
+		RedisAddr:          getEnv("REDIS_ADDR", "localhost:6380"),
+		RedisPassword:      getEnv("REDIS_PASSWORD", "appraisal"),
 	}
 }
 
