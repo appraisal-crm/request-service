@@ -25,11 +25,14 @@ import (
 	"github.com/MicahParks/keyfunc/v3"
 	_ "github.com/appraisal-crm/request-service/api"
 	"github.com/appraisal-crm/request-service/config"
+	"github.com/appraisal-crm/request-service/internal/dedup"
 	"github.com/appraisal-crm/request-service/internal/handler"
+	"github.com/appraisal-crm/request-service/internal/kafka"
 	"github.com/appraisal-crm/request-service/internal/outbox"
 	"github.com/appraisal-crm/request-service/internal/repository"
 	"github.com/appraisal-crm/request-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -50,6 +53,17 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("connected to database")
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+	})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		slog.Warn("redis is not reachable — dedup might fail", "error", err)
+	} else {
+		slog.Info("connected to redis", "addr", cfg.RedisAddr)
+	}
+	defer rdb.Close()
 
 	jwks, err := keyfunc.NewDefault([]string{cfg.JWKSUrl})
 	if err != nil {
@@ -76,7 +90,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	producer := outbox.NewProducer(strings.Split(cfg.KafkaBrokers, ","))
+	brokers := strings.Split(cfg.KafkaBrokers, ",")
+	producer := outbox.NewProducer(brokers)
 	defer producer.Close()
 	relay := outbox.NewRelay(db, producer, cfg.OutboxPollInterval)
 	relayDone := make(chan struct{})
@@ -85,6 +100,30 @@ func main() {
 		close(relayDone)
 	}()
 	slog.Info("outbox relay started", "interval", cfg.OutboxPollInterval)
+
+	deduplicator := dedup.New(rdb, 24*time.Hour)
+
+	inspectConsumer := kafka.NewConsumer(brokers, cfg.KafkaConsumerGroup, cfg.KafkaInspectTopic, deduplicator, svc)
+	defer inspectConsumer.Close()
+	inspectConsumerDone := make(chan struct{})
+	go func() {
+		if err := inspectConsumer.Run(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("inspect consumer failed", "error", err)
+		}
+		close(inspectConsumerDone)
+	}()
+	slog.Info("inspect event consumer started", "topic", cfg.KafkaInspectTopic, "group", cfg.KafkaConsumerGroup)
+
+	reviewConsumer := kafka.NewConsumer(brokers, cfg.KafkaConsumerGroup, cfg.KafkaReviewTopic, deduplicator, svc)
+	defer reviewConsumer.Close()
+	reviewConsumerDone := make(chan struct{})
+	go func() {
+		if err := reviewConsumer.Run(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("review consumer failed", "error", err)
+		}
+		close(reviewConsumerDone)
+	}()
+	slog.Info("review event consumer started", "topic", cfg.KafkaReviewTopic, "group", cfg.KafkaConsumerGroup)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -110,6 +149,10 @@ func main() {
 		}
 		<-relayDone
 		slog.Info("outbox relay stopped")
+		<-inspectConsumerDone
+		slog.Info("inspect consumer stopped")
+		<-reviewConsumerDone
+		slog.Info("review consumer stopped")
 		slog.Info("server stopped")
 	}
 }
