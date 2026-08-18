@@ -120,8 +120,9 @@ The appraiser receives the property data, manually searches for comparable prope
 | ID | Requirement |
 |----|-------------|
 | BR-001 | The client must be able to submit a request via the web interface, specifying the property type, address, and contact details, without calling the company. |
+| BR-001a | The client must be able to self-register on the platform via the web interface (Keycloak self-registration or client portal sign-up), providing email, phone number, and password. |
 | BR-002 | When a new request is received, the appraiser must receive a notification (email). |
-| BR-003 | The system must save all data collected during the client interview, linked to the request. Upon request confirmation, a client account must be created on the platform and credentials sent via email (provided the client is not already registered). |
+| BR-003 | If an unregistered/guest client submits a request, the system must automatically register a client account in Keycloak using their contact email, link the new request to this account, and send temporary credentials / a password setup link to their email. |
 | BR-004 | A request must follow a status model reflecting the current stage: **New → In Progress → Inspection Scheduled → Inspection Completed → Appraisal → Report Sent → Closed**. |
 | BR-005 | The client must be able to view the current status of their request in their personal account without needing to call. |
 
