@@ -54,6 +54,9 @@ Transitions are validated in the service layer. Skipping a step is not allowed.
 - Notification Service
 - Frontend (all 4 SPAs)
 - Kafka integration in services
+- **Client registration & onboarding (BR-001a, BR-003):**
+  - Self-registration for clients via client portal / Keycloak form
+  - Auto-registration for guest clients upon request submission (creates Keycloak user, links `client_id`, sends credentials via email)
 
 ## Go module path
 
